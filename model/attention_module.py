@@ -61,11 +61,11 @@ class AttentionWeightedAggregation(nn.Module):
         self.weighting_f = F.sigmoid()
 
     
-    def forward(self, clue_embeddings: torch.Tensor, attention: torch.Tensor):
+    def forward(self, clue_embeddings: torch.Tensor, img_embedding:torch.Tensor, attention: torch.Tensor):
         x = clue_embeddings
         a = attention
         if self.norm is not None:
-            x = self.norm(img_embedding)
+            x = self.norm(img_embedding) #TODO: self.norm
         
         aggregated_embedding = torch.sum(self.weighting_f(self.temperature * attention) * x) / x.size
         return aggregated_embedding
