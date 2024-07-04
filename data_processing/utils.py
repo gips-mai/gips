@@ -12,12 +12,12 @@ load_dotenv()
 HF_AUTH_TOKEN = os.getenv('HF_AUTH_TOKEN')
 
 
-def encode_dataset(df, unzip_fct, data_key, filter_keys=None, batch_size=32, writer_batch_size=10000):
+def encode_dataset(df, unzip_fct, data_key, filter_keys=None, batch_size=128, writer_batch_size=20000):
     """ Encode a dataset using a given tokenizer and model. The dataset is expected to be a pandas DataFrame.
     Args:
         df: pd.DataFrame, the dataset to encode
         unzip_fct: function, the function to use to unzip a row, must return a dictionary
-        data_key: str, the key of the raw_data to encode in the sample
+        data_key: str, the key of the data to encode in the sample
         filter_keys: list of str, keys which should be removed from the sample before adding the encoding
         batch_size: int, the number of samples to process at once
         writer_batch_size: int, the batch size for writing the dataset
