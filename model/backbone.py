@@ -1,9 +1,10 @@
 from torch import nn
 from PIL import Image
+from transformers import CLIPProcessor, CLIPModel, AutoModel, AutoTokenizer
 
 
 class StreetCLIP(nn.Module):
-    def __init__(self, path):
+    def __init__(self, path='geolocal/StreetCLIP'):
         """Initializes the CLIP model."""
         super().__init__()
         self.clip = CLIPModel.from_pretrained(path)
@@ -19,30 +20,52 @@ class StreetCLIP(nn.Module):
         ).unsqueeze(1)
         return features
 
+    # TODO: discuss - why not this forward function?
+    # taken from https://github.com/gastruc/osv5m/blob/4e6075387ecde4255410785ffb83830c9aa099f6/models/networks/backbones.py
+    def forward_new(self, x):
+        """Predicts CLIP features from an image.
+        Args:
+            x (dict that contains "img": torch.Tensor): Input batch
+        """
+        features = self.clip(pixel_values=x["img"])["last_hidden_state"]
+        return features
+
+
+class ImageDescriptor(nn.Module):
+
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        pass
+
+
 class TextEncoder(nn.Module):
-    def __init__(self,path):
+    def __init__(self, path):
         """ Initializes the model for encoding the text clues. """
         super().__init__()
         self.textEncoder = AutoModel.from_pretrained(path)
-        self.tokenizer = AutTokenizer.from_pretrained(path)
+        self.tokenizer = AutoTokenizer.from_pretrained(path)
 
     def forward(self, x):
         """Encodes the text clues into a dense representation.
         Args:
             x (): Input batch
         """
+
     pass
     # TODO: jointly tokenize all text clues (guidebook + ocr + scraped information) -> then jointly encode all information
 
+
 class LocationAttention(nn.Module):
-        def __init__(
-        self,
-        attn_input_img_size: int,
-        text_features_size: int,
-        beta=-1.0,
-        norm_type: str = "batch_norm",
-        ):
-            """
+    def __init__(
+            self,
+            attn_input_img_size: int,
+            text_features_size: int,
+            beta=-1.0,
+            norm_type: str = "batch_norm",
+    ):
+        """
             A simple linear layer that only takes an image embedding as input.
 
             Args:
@@ -52,34 +75,35 @@ class LocationAttention(nn.Module):
                 norm_type (str): normalize inputs. values: batch_norm, layer_norm, or None
             """
 
-            class SingleModule(nn.Module):
-                def __init__(self, dim_in, dim_out):
-                    super.__init__()
+        class SingleModule(nn.Module):
+            def __init__(self, dim_in, dim_out):
+                super.__init__()
 
-                    self.ln = torch.nn.linear(dim_in, dim_out)
-                    self.actv = torch.nn.functional.relu()
+                self.ln = torch.nn.linear(dim_in, dim_out)
+                self.actv = torch.nn.functional.relu()
 
-        # normalize text inputs to [0-1] range
-        # TODO: research difference between BatchNorm and LayerNorm
-        
-        self.lc = nn.Sequential(
-            SingleModule(),
-            SingleModule()
-        )
+    # normalize text inputs to [0-1] range
+    # TODO: research difference between BatchNorm and LayerNorm
 
-        def forward(self, x):
-            weights = self.lc(x)
-            return weights
+    self.lc = nn.Sequential(
+        SingleModule(),
+        SingleModule()
+    )
+
+    def forward(self, x):
+        weights = self.lc(x)
+        return weights
+
 
 class LatLongHead(nn.Module):
     def __init__(
-        self,
-        initial_dim=512,
-        hidden_dim=[128, 32, 2],
-        final_dim=2,
-        norm=nn.InstanceNorm1d,
-        activation=nn.ReLU,
-        aux_data=[],
+            self,
+            initial_dim=512,
+            hidden_dim=[128, 32, 2],
+            final_dim=2,
+            norm=nn.InstanceNorm1d,
+            activation=nn.ReLU,
+            aux_data=[],
     ):
         """
         Initializes an MLP Classification Head
@@ -127,8 +151,6 @@ class LatLongHead(nn.Module):
                 args.append(activation())
         return args
 
-
-
     def forward(self, x):
         """Predicts GPS coordinates from an image.
         Args:
@@ -141,5 +163,3 @@ class LatLongHead(nn.Module):
                 out[col] = x[:, self.idx[col]]
             return out
         return self.mlp(x[:, 0, :])
-
-    
