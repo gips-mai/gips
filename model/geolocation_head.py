@@ -46,3 +46,10 @@ class MLPCentroid(nn.Module):
             x: torch.Tensor with features
         """
         return torch.cat([self.classif(x[:, 0, :]), self.reg(x[:, 0, :])], dim=1)
+    
+    def get_loss(self, output, target):
+        raise NotImplemented
+    
+    def training_step(self, x, target):
+        output = self.forward(x)
+        return self.get_loss(output, target)
