@@ -13,7 +13,7 @@ class LinearAttention(nn.Module):
         hidden_layer_size_0: int,
         hidden_layer_size_1: int,
         beta=-1.0,
-        norm_type: str = "batch_norm",
+        norm: str="batch",
     ):
         """
         A simple linear layer that only takes an image embedding as input.
@@ -34,11 +34,12 @@ class LinearAttention(nn.Module):
             self.beta = torch.nn.Parameter(torch.tensor(beta), requires_grad=False)
         logging.info(f"Using attn_beta = {self.beta}, type = SimpleLinearProjectionAttention")
 
+
         self.norm = (
             torch.nn.BatchNorm1d(attn_input_img_size)
-            if norm_type == "batch_norm"
+            if norm == "batch"
             else nn.LayerNorm(attn_input_img_size)
-            if norm_type == "layer_norm"
+            if norm == "layer"
             else None
         )
 
@@ -58,36 +59,46 @@ class LinearAttention(nn.Module):
         x = img_embedding
         if self.norm is not None:
             x = self.norm(img_embedding)
-        attention_scores = self.model(x) + self.beta
+        attention_scores = self.layers(x) + self.beta
         return attention_scores
 
 
 class AttentionWeightedAggregation(nn.Module):
 
-    def __init__(self, temperature):
-
+    def __init__(self, temperature, norm='batch'):
         self.temperature = temperature
         self.weighting_f = F.sigmoid
-
     
-    def forward(self, clue_embeddings: torch.Tensor, img_embedding:torch.Tensor, attention: torch.Tensor):
-        x = clue_embeddings
-        if self.norm is not None:
-            x = self.norm(img_embedding) #TODO: self.norm
-        
-        aggregated_embedding = torch.sum(self.weighting_f(self.temperature * attention) * x) / x.size
+    def forward(self, clue_embeddings: torch.Tensor, attention: torch.Tensor):
+        f1 = self.weighting_f(self.temperature * attention)
+        # print(f1.shape) # torch.Size([16, 768])
+        # print(clue_embeddings.shape) # torch.Size([3817, 768])
+        f2 = f1 * clue_embeddings #TODO: this mult is off. dims do not match. result should be [768, batch_size] or the other way round. 768 = clue embedding size
+        #TODO: check if this is correct
+        print('IS THIS MULT CORRECT? In model/attention_module.py/AttentionWeightedAggregation')
+        dividend = torch.sum(f2, dim=1)
+        divisor = clue_embeddings.numel()
+        aggregated_embedding = dividend / divisor
         return aggregated_embedding
 
 
 def get_pseudo_label_loss(clue_countries, hot_enc_size=221):
 
-    l2_loss = torch.nn.MSEloss()
+    l2_loss = nn.MSELoss()
     mat = torch.zeros((len(clue_countries), hot_enc_size))
     for i, enc in enumerate(clue_countries):
-        mat[i] = enc
+        if len(enc) > 0:
+            if len(enc) == 1:
+                if enc[0] == []: continue
+                tmp = torch.tensor(enc[0])
+                mat[i] = torch.tensor(enc[0])
+            else:
+                tmp = torch.cat([torch.tensor(x) for x in enc], dim=0)
+                mat[i] = torch.sum(tmp, dim=0)
+
 
     def pseudo_label_loss(attention_prediction, gt_country_encoding):
 
         return l2_loss(mat @ gt_country_encoding.view(-1, 1), attention_prediction)
 
-    return pseudo_label_loss()
+    return pseudo_label_loss
