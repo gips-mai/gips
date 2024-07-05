@@ -23,7 +23,6 @@ class CountryClassifier(nn.Module):
             nn.Linear(self.embedding_size, 1024), #TODO: over 1400 features in original paper
             nn.Linear(1024, 1024),
             nn.Linear(1024, self.n_countries),
-            nn.functional.softmax(dim=1) # dim 1 since we want to average for each country
         )
         
     def get_loss(self, output, target):
@@ -36,7 +35,7 @@ class CountryClassifier(nn.Module):
         return total_loss
 
     def forward(self, x):
-        return self.classifier(x)
+        return nn.functional.softmax(self.classifier(x), dim=1)
     
     def training_step(self, x, target):
         output = self.forward(x)
