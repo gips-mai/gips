@@ -42,15 +42,23 @@ class LinearAttention(nn.Module):
             else None
         )
 
-        self.f0 = F.Relu(torch.nn.Linear(attn_input_img_size, hidden_layer_size_0))
-        self.f1 = F.Relu(torch.nn.Linear(hidden_layer_size_0, hidden_layer_size_1))
-        self.fc = torch.nn.Linear(hidden_layer_size_1, text_features_size)
+        self.layers = nn.Sequential(
+            nn.Linear(attn_input_img_size, hidden_layer_size_0),
+            nn.ReLU(),
+            nn.Linear(hidden_layer_size_0, hidden_layer_size_1),
+            nn.ReLU(),
+            nn.Linear(hidden_layer_size_1, text_features_size)
+        )
+
+        # self.f0 = F.relu(torch.nn.Linear(attn_input_img_size, hidden_layer_size_0))
+        # self.f1 = F.relu(torch.nn.Linear(hidden_layer_size_0, hidden_layer_size_1))
+        # self.fc = torch.nn.Linear(hidden_layer_size_1, text_features_size)
 
     def forward(self, img_embedding: torch.Tensor):
         x = img_embedding
         if self.norm is not None:
             x = self.norm(img_embedding)
-        attention_scores = F.Relu(self.fc(self.f1(self.f0(x))) + self.beta)
+        attention_scores = self.model(x) + self.beta
         return attention_scores
 
 
@@ -59,12 +67,11 @@ class AttentionWeightedAggregation(nn.Module):
     def __init__(self, temperature):
 
         self.temperature = temperature
-        self.weighting_f = F.sigmoid()
+        self.weighting_f = F.sigmoid
 
     
     def forward(self, clue_embeddings: torch.Tensor, img_embedding:torch.Tensor, attention: torch.Tensor):
         x = clue_embeddings
-        a = attention
         if self.norm is not None:
             x = self.norm(img_embedding) #TODO: self.norm
         
