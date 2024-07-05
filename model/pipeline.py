@@ -9,20 +9,18 @@ class GeoguessrPipeline(nn.Module):
 
     def __init__(self):
         super().__init__()
-        # visual parts
-        self.img_encoder = bb.StreetCLIP()
-        self.img_descriptor = bb.ImageDescriptor()
-        # textual parts
-        self.location_attention = am.LocationAttention()
+        self.img_encoder = bb.StreetCLIP()  # Image encoder
+        self.location_attention = am.LinearAttention()
         self.lat_long_head = gh.LatLongHead()
 
-    def forward(self, x):
+    def forward(self, img, enc_clues):
+        """ Forward pass of the pipeline.
+         Args:
+             img (Tensor): Image tensor of shape (B, C, H, W)
+             clues (Tensor): Class tensor of shape (B, C, H, W) """
 
-        # decompose x into its components for the individual modules
-        img = x['img']
-        clues = x['clues']
+        enc_img = self.img_encoder(img)
 
-        x = self.backbone(x)
-        x = self.location_attention(x)
-        x = self.lat_long_head(x)
-        return x
+        att_weights = self.location_attention(enc_img, enc_clues)
+
+        # TODO: complete!!!
