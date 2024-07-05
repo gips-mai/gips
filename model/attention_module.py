@@ -3,6 +3,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
 class LinearAttention(nn.Module):
     def __init__(
@@ -69,4 +70,20 @@ class AttentionWeightedAggregation(nn.Module):
         
         aggregated_embedding = torch.sum(self.weighting_f(self.temperature * attention) * x) / x.size
         return aggregated_embedding
+
+def get_pseudo_label_loss(clue_countries, hot_enc_size):
+
+    l2_loss = torch.nn.MSEloss()
+
+    mat = torch.zeros((len(clue_countries, hot_enc_size)))
+
+    for i, countries in enumerate(clue_countries):
+        for enc in countries:
+            mat[i] += enc
+
+
+    def pseudo_label_loss(attention_prediction, gt_country_encoding):
+
+        return l2_loss(mat @ gt_country_encoding.view(-1, 1), attention_prediction)
+
 
