@@ -12,13 +12,15 @@ from model.backbone import LatLongHead, LocationAttention, StreetCLIP, TextEncod
 from model.country_prediction import CountryClassifier
 from model.head.geolocation_head import MLPCentroid, HybridHeadCentroid
 
+from model.attention_module import get_pseudo_label_loss
+
 from datasets import load_dataset
 
 ### HYPER PARAMETERS ###
 lr = 0.001
 alpha = 0.75
-use_tanh=True
-scale_tanh=1.2
+use_tanh = True
+scale_tanh = 1.2
 ### HYPER PARAMETERS ###
 
 device = 'cuda'
@@ -46,7 +48,8 @@ scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5)
 
 cell_loss = nn.CrossEntropyLoss()
 coordinate_loss = nn.MSELoss()
-pseudo_label_loss = nn.MSELoss()
+pseudo_label_loss = get_pseudo_label_loss(clues["one_hot_encoding"])
+alpha = 0.75
 
 clues = load_dataset("gips-mai/all_clues_enc")
 descriptions = load_dataset("gips-mai/enc_descr")
@@ -63,15 +66,25 @@ for epoch in range(10):
 
         attention = linear_attention.forward(img_embedding=imgs)
         weighted_aggregation = attention_aggregation.forward(clues, imgs, attention)
+
+        # country loss
         country_loss = country_classifier.training_step(x=weighted_aggregation, target=country_encoding[labels['ISO2']]) # target: get the iso2 of actual country and then look at the one hot encoding
         country_losses.append(country_loss)
+
+        # pseudo label loss
+        current_pseudo_label_loss = pseudo_label_loss(country_target, attention)
+
+        aux_attention_loss = alpha * current_pseudo_label_loss + (1-alpha) * country_loss
+
 
         aggregated_input = torch.cat([imgs, descriptions, weighted_aggregation], dim=1)
 
         intermediate = geohead.forward(aggregated_input)
         prediction = hybrid_head_centroid.forward(intermediate, cell_target)
 
-        total_loss = cell_loss.apply(prediction['label'], cell_target) + coordinate_loss.apply(prediction['gps'], coordinate_target) + country_loss
+        total_loss = cell_loss.apply(prediction['label'], cell_target) + \
+                     coordinate_loss.apply(prediction['gps'], coordinate_target) + \
+                     aux_attention_loss
 
         total_loss.backward()
         optimizer.step()

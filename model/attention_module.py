@@ -71,16 +71,16 @@ class AttentionWeightedAggregation(nn.Module):
         aggregated_embedding = torch.sum(self.weighting_f(self.temperature * attention) * x) / x.size
         return aggregated_embedding
 
+
 def get_pseudo_label_loss(clue_countries, hot_enc_size=221):
 
     l2_loss = torch.nn.MSEloss()
-
-    mat = torch.zeros((len(clue_countries, hot_enc_size)))
-    
+    mat = torch.zeros((len(clue_countries), hot_enc_size))
     for i, enc in enumerate(clue_countries):
         mat[i] = enc
-
 
     def pseudo_label_loss(attention_prediction, gt_country_encoding):
 
         return l2_loss(mat @ gt_country_encoding.view(-1, 1), attention_prediction)
+
+    return pseudo_label_loss()
