@@ -2,15 +2,14 @@ import torch
 import torch.nn as nn
 
 class CountryClassifier(nn.Module):
-    def __init__(self, clue_embedding_size=512, image_embedding_size=512, alpha=0.75, n_countries=219) -> None:
+    def __init__(self, clue_embedding_size=768, alpha=0.75, n_countries=219) -> None:
         #TODO: adjust image_embedding size
         super().__init__()
 
         self.alpha = alpha
         self.n_countries = n_countries
-        self.image_embedding_size = image_embedding_size
         self.clue_embedding_size = clue_embedding_size
-        self.embedding_size = clue_embedding_size + image_embedding_size
+        self.embedding_size = clue_embedding_size
 
         self.init_layers()
 
