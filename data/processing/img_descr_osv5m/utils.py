@@ -1,3 +1,4 @@
+import numpy as np
 from datasets import Dataset
 from tqdm import tqdm
 import torch
@@ -7,10 +8,11 @@ from dotenv import load_dotenv
 import torchvision.transforms as T
 from PIL import Image
 from torchvision.transforms.functional import InterpolationMode
+from sentence_transformers import SentenceTransformer
 
 # Definitions
-tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
-model = RobertaModel.from_pretrained('roberta-base').to('cuda')
+model = SentenceTransformer('all-mpnet-base-v2')
+
 load_dotenv()
 HF_AUTH_TOKEN = os.getenv('HF_AUTH_TOKEN')
 
@@ -35,13 +37,11 @@ def encode_dataset(df, unzip_fct, data_key, filter_keys=None, batch_size=128, wr
         batch_samples = [unzip_fct(row) for _, row in batch.iterrows()]
 
         # Prepare inputs for the batch
-        inputs = tokenizer([sample[data_key] for sample in batch_samples], return_tensors='pt', truncation=True,
-                           padding=True).to('cuda')
+        inputs = [sample[data_key] for sample in batch_samples]
 
         # Encode the batch
         with torch.no_grad():
-            outputs = model(**inputs)
-        batch_encodings = outputs.last_hidden_state.cpu().numpy()  # Extract last hidden state as the encoding
+            batch_encoding = model.encode(inputs)
 
         # Process each sample in the batch
         for j, sample in enumerate(batch_samples):
@@ -49,7 +49,7 @@ def encode_dataset(df, unzip_fct, data_key, filter_keys=None, batch_size=128, wr
             if filter_keys is not None:
                 for key in filter_keys:
                     encoding_dict.pop(key, None)
-            encoding_dict['encoding'] = batch_encodings[j]
+            encoding_dict['encoding'] = batch_encoding[j]
             encodings.append(encoding_dict)
 
         # If we've accumulated enough samples, create a dataset and reset

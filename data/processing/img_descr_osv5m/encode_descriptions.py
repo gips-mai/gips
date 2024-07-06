@@ -38,6 +38,8 @@ for comb_split in os.listdir(path):
         full_enc_dataset[split_name] = enc_split
         full_enc_dataset.save_to_disk('data/enc_descr')
 
+# Save locally
+full_enc_dataset.save_to_disk('data/enc_descr')
 
 print(full_enc_dataset)
 # Upload the dataset to the Hugging Face Hub
