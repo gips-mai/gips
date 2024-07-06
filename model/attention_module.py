@@ -65,19 +65,15 @@ class LinearAttention(nn.Module):
 
 class AttentionWeightedAggregation(nn.Module):
 
-    def __init__(self, temperature, norm='batch'):
+    def __init__(self, temperature=1):
         self.temperature = temperature
         self.weighting_f = F.sigmoid
     
     def forward(self, clue_embeddings: torch.Tensor, attention: torch.Tensor):
         f1 = self.weighting_f(self.temperature * attention)
-        # print(f1.shape) # torch.Size([16, 768])
-        # print(clue_embeddings.shape) # torch.Size([3817, 768])
-        f2 = f1 * clue_embeddings #TODO: this mult is off. dims do not match. result should be [768, batch_size] or the other way round. 768 = clue embedding size
-        #TODO: check if this is correct
-        print('IS THIS MULT CORRECT? In model/attention_module.py/AttentionWeightedAggregation')
+        f2 = clue_embeddings[None, :, :].repeat(16, 1, 1) * f1[:, None, :]
         dividend = torch.sum(f2, dim=1)
-        divisor = clue_embeddings.numel()
+        divisor = clue_embeddings.shape[1]
         aggregated_embedding = dividend / divisor
         return aggregated_embedding
 
