@@ -74,6 +74,7 @@ for epoch in range(10):
         attention = linear_attention.forward(img_embedding=imgs)
         weighted_aggregation = attention_aggregation.forward(clue_embeddings=clue_embeddings, attention=attention)
 
+        #TODO: debug from here
         country_loss = country_classifier.training_step(x=weighted_aggregation, target=country_target) # target: get the iso2 of actual country and then look at the one hot encoding
         country_losses.append(country_loss)
 
