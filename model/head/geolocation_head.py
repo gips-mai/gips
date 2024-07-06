@@ -1,6 +1,7 @@
 import torch.nn as nn
 import pandas as pd
 from utils.osv5m_utils import UnormGPS
+import torch
 
 
 class MLPCentroid(nn.Module):
@@ -47,7 +48,7 @@ class MLPCentroid(nn.Module):
         Args:
             x: torch.Tensor with features
         """
-        return torch.cat([self.classif(x[:, 0, :]), self.reg(x[:, 0, :])], dim=1)
+        return torch.cat([self.classif(x), self.reg(x)], dim=1)
     
 
 class HybridHeadCentroid(nn.Module):
@@ -65,8 +66,11 @@ class HybridHeadCentroid(nn.Module):
             self.init_quadtree(quadtree)
 
     def init_quadtree(self, quadtree):
+
+
         quadtree[["min_lat", "max_lat", "mean_lat"]] /= 90.0
         quadtree[["min_lon", "max_lon", "mean_lon"]] /= 180.0
+
         self.cell_center = torch.tensor(quadtree[["mean_lat", "mean_lon"]].values)
         self.cell_size_up = torch.tensor(quadtree[["max_lat", "max_lon"]].values) - torch.tensor(quadtree[["mean_lat", "mean_lon"]].values)
         self.cell_size_down = torch.tensor(quadtree[["mean_lat", "mean_lon"]].values) - torch.tensor(quadtree[["min_lat", "min_lon"]].values)
