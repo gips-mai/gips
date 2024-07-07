@@ -50,7 +50,6 @@ class Gips(nn.Module):
         Returns:
             GipsOutput: Model prediction. """
 
-        aggr_clues = None
         attn_scores = None
         # If multimodal inputs are used compute the aggregated clues representation and use it together with the encoded
         # image and the encoded description to predict the latitude and longitude
