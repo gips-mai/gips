@@ -78,7 +78,9 @@ class MLPCentroid(nn.Module):
         Args:
             x: torch.Tensor with features
         """
-        return torch.cat([self.classif(x), self.reg(x)], dim=1)
+        result_classif = self.classif(x)
+        result_regres = self.reg(x)
+        return torch.cat([result_classif, result_regres], dim=1)
 
 
 class HybridHeadCentroid(nn.Module):
@@ -112,8 +114,10 @@ class HybridHeadCentroid(nn.Module):
         """Forward pass of the network.
         x : Union[torch.Tensor, dict] with the output of the backbone.
         """
+        # Extract the most probable classified cell in the quadtree
         classification_logits = x[..., : self.final_dim]
         classification = classification_logits.argmax(dim=-1)
+        # move the max min and center latt and long values of the classified cell to the correct device
         self.cell_size_up = self.cell_size_up.to(classification.device)
         self.cell_center = self.cell_center.to(classification.device)
         self.cell_size_down = self.cell_size_down.to(classification.device)
@@ -123,13 +127,17 @@ class HybridHeadCentroid(nn.Module):
         if self.use_tanh:
             regression = self.scale_tanh * torch.tanh(regression)
 
+        # Reshape the regression to batch_size X Num_cells X 2 (lat, long)
         regression = regression.view(regression.shape[0], -1, 2)
 
         if self.training:
+            # Get the predicted regression values for the most probable cell
             regression = torch.gather(
+                # batch_size X Num_cells X 2
                 regression,
                 1,
-                gt_label.unsqueeze(-1).unsqueeze(-1).expand(regression.shape[0], 1, 2),
+                # batch_size X 0 -> batch_size X 1 X 1 -> repeat -> batch_size X 1 X 2
+                gt_label.unsqueeze(-1).expand(regression.shape[0], 1, 2),
             )[:, 0, :]
             size = torch.where(
                 regression > 0,

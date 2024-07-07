@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
 from torch.utils.data import DataLoader
-
+import numpy as np
 from model.gips import Gips
 
 from datasets import load_dataset
@@ -85,7 +85,7 @@ def test_single_sample_training(epochs=2, use_multimodal_inputs=True):
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5)
 
     dummy_dataset = load_dataset("gips-mai/osv5m_ann", split="01")
-    data_loader = DataLoader(dummy_dataset, batch_size=1)
+    data_loader = DataLoader(dummy_dataset, batch_size=2)
 
     for epoch in tqdm(range(epochs), desc="Epochs"):
         epoch_loss = 0.0
@@ -96,8 +96,11 @@ def test_single_sample_training(epochs=2, use_multimodal_inputs=True):
             # Reshape and transpose the data
             img_enc = torch.stack(batch["img_encoding"]).t().float().to(device)
             text_enc = torch.stack(batch["desc_encoding"]).t().float().to(device)
-            target_cell = torch.stack(list(batch["quadtree_10_1000"])).t().float().to(device).unsqueeze(dim=1)
-            target_country = torch.tensor(batch["country_one_hot_enc"]).float().to(device)
+            # Target cell is an index, therefore it should be an integer
+            target_cell = torch.stack(list(batch["quadtree_10_1000"])).t().to(device).unsqueeze(dim=1)
+            # The dataloader returns a list of one-hot encodings,
+            # so we need to convert it to a numpy array and then to a tensor
+            target_country = torch.tensor(np.array(batch["country_one_hot_enc"][0])).t().float().to(device)
             latitude_target = torch.stack(list(batch["latitude"])).t().float().to(device).unsqueeze(dim=1)
             longitude_target = torch.stack(list(batch["longitude"])).t().float().to(device).unsqueeze(dim=1)
 
@@ -111,7 +114,9 @@ def test_single_sample_training(epochs=2, use_multimodal_inputs=True):
             optimizer.step()
             print(f"Epoch {epoch}, Loss: {epoch_loss:.4f}")
 
+
 test_single_sample_training()
+
 
 def train_gips(epochs=2, use_multimodal_inputs=True):
     # fix random seed
@@ -179,5 +184,3 @@ def train_gips(epochs=2, use_multimodal_inputs=True):
 
         # Adapt the learning rate for every epoch
         scheduler.step()
-
-

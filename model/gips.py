@@ -61,7 +61,7 @@ class Gips(nn.Module):
 
         latt_long_pred = self.lat_long_head(x, target_cell)
 
-        return GipsOutput(latt_long_pred, attn_scores)
+        return GipsOutput(latt_long_pred, attn_scores, aggr_clues)
 
     def get_losses(self: T, enc_img, enc_descr, target_cell, target_country, coordinate_target) -> T:
 
@@ -100,17 +100,18 @@ class GipsOutput():
     """ The output prediction of the Gips model.
     Consists of the predicted latitude and longitude, the aggregated clues representation and its attention scores."""
 
-    def __init__(self, lat_long_pred, attn_scores):
+    def __init__(self, lat_long_pred, attn_scores, aggr_clues):
         self.lat_long_pred = lat_long_pred
+        self.aggr_clues = aggr_clues
+        self.attn_scores = attn_scores
 
         self.label = lat_long_pred['label']
         self.gps = lat_long_pred['gps']
         self.size = lat_long_pred['size']
         self.center = lat_long_pred['center']
         self.reg = lat_long_pred['reg']
-        self.attn_scores = attn_scores
 
-        self.pred = {
+        self.pred_geoloc_head = {
             "label": self.label,
             "gps": self.gps,
             "size": self.size,
@@ -120,4 +121,4 @@ class GipsOutput():
         }
 
     def items(self):
-        return self.pred.items()
+        return self.pred_geoloc_head.items()

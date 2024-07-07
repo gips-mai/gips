@@ -80,6 +80,8 @@ class GuidingHead(nn.Module):
         Returns:
             The combined loss of the Guiding Head """
         # Country loss + Pseudo label loss
+
+
         return (self.comp_country_loss(country_pred, country_target) * (1 - self.alpha) +
                 self.comp_pseudo_label_loss(attention_scores, country_target) * self.alpha)
 
