@@ -7,12 +7,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from model.attention_module import AttentionWeightedAggregation, LinearAttention
-from model.backbone import LatLongHead, LocationAttention, StreetCLIP, TextEncoder #TODO remove unused imports
-from model.country_prediction import CountryClassifier
-from model.head.geolocation_head import MLPCentroid, HybridHeadCentroid
+from model.modules.attention_module import AttentionWeightedAggregation, LinearAttention
+from model.modules.heads.country_pred_head import CountryClassifier
+from model.modules.heads.geoloc_head import MLPCentroid, HybridHeadCentroid
 
-from model.attention_module import get_pseudo_label_loss
+from model.modules.attention_module import get_pseudo_label_loss
 
 from datasets import load_dataset
 
@@ -143,3 +142,4 @@ class CustomDataset(torch.utils.data.Dataset):
         coordinate_target = torch.tensor(row['coordinate_target'])
 
         return descript, img_embed, country_encoding, cell_target, coordinate_target
+

@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from model.head.geolocation_head import MLPCentroid, HybridHeadCentroid
+from model.modules.heads.geoloc_head import MLPCentroid, HybridHeadCentroid
 
 from datasets import load_dataset
 

@@ -13,7 +13,6 @@ class LinearAttention(nn.Module):
         hidden_layer_size_0: int,
         hidden_layer_size_1: int,
         beta=-1.0,
-        norm: str="batch",
     ):
         """
         A simple linear layer that only takes an image embedding as input.
@@ -35,13 +34,7 @@ class LinearAttention(nn.Module):
         logging.info(f"Using attn_beta = {self.beta}, type = SimpleLinearProjectionAttention")
 
 
-        self.norm = (
-            torch.nn.BatchNorm1d(attn_input_img_size)
-            if norm == "batch"
-            else nn.LayerNorm(attn_input_img_size)
-            if norm == "layer"
-            else None
-        )
+        self.norm =  torch.nn.BatchNorm1d(attn_input_img_size)
 
         self.layers = nn.Sequential(
             nn.Linear(attn_input_img_size, hidden_layer_size_0),
@@ -57,44 +50,35 @@ class LinearAttention(nn.Module):
 
     def forward(self, img_embedding: torch.Tensor):
         x = img_embedding
-        if self.norm is not None:
-            x = self.norm(img_embedding)
+        # Only apply batch normalization if we have a batch
+        if x.shape[0] > 1:
+            x = self.norm(img_embedding)  # Batched vs nonbatched training
         attention_scores = self.layers(x) + self.beta
         return attention_scores
 
 
-class AttentionWeightedAggregation(nn.Module):
+class AttentionWeightedAggregation:
 
-    def __init__(self, temperature=1):
+    def __init__(self, clues, temperature=1):
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
         self.temperature = temperature
         self.weighting_f = F.sigmoid
+
+        self.clue_embeddings = torch.tensor(clues['encoding']).to(device)
     
-    def forward(self, clue_embeddings: torch.Tensor, attention: torch.Tensor):
+    def forward(self, attention: torch.Tensor):
+
+        batch_size = attention.shape[0]
+
         f1 = self.weighting_f(self.temperature * attention)
-        f2 = clue_embeddings[None, :, :].repeat(16, 1, 1) * f1[:, None, :]
-        dividend = torch.sum(f2, dim=1)
-        divisor = clue_embeddings.shape[1]
-        aggregated_embedding = dividend / divisor
-        return aggregated_embedding
+
+        # adjust dimensions to allow for element-wise multiplication in batches
+        f1 = f1.unsqueeze(dim=2)
+        f2 = self.clue_embeddings.repeat(batch_size, 1, 1)
+
+        # compute element-wise multiplication for each batch
+        f2 = f2 * f1
 
 
-def get_pseudo_label_loss(clue_countries, hot_enc_size=221):
-
-    l2_loss = nn.MSELoss()
-    mat = torch.zeros((len(clue_countries), hot_enc_size))
-    for i, enc in enumerate(clue_countries):
-        if len(enc) > 0:
-            if len(enc) == 1:
-                if enc[0] == []: continue
-                tmp = torch.tensor(enc[0])
-                mat[i] = torch.tensor(enc[0])
-            else:
-                tmp = torch.cat([torch.tensor(x) for x in enc], dim=0)
-                mat[i] = torch.sum(tmp, dim=0)
-
-
-    def pseudo_label_loss(attention_prediction, gt_country_encoding):
-
-        return l2_loss(mat @ gt_country_encoding.view(-1, 1), attention_prediction)
-
-    return pseudo_label_loss
+        return torch.sum(f2, dim=1) / self.clue_embeddings.shape[1]
