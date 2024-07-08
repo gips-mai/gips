@@ -1,1 +1,44 @@
-{"gips": {"loss": 29587.373779296875, "lat_long_loss": 29572.130615234375, "guiding_loss": 15.243046641349792, "n_loss": 29.41090832932095, "n_lat_long_loss": 29.395756078761803, "n_guiding_loss": 0.015152133838319874, "len_data": 1006, "metric": {"Haversine": 8227.381149277662, "Geoguessr": 201.4214156891246, "count": 1006}}, "gips_reg_head_no_multimod": {"loss": 29628.89306640625, "lat_long_loss": 29628.89306640625, "guiding_loss": 0.0, "n_loss": 29.452179986487327, "n_lat_long_loss": 29.452179986487327, "n_guiding_loss": 0.0, "len_data": 1006, "metric": {"Haversine": 8227.566700693244, "Geoguessr": 201.88744719361912, "count": 1006}}, "gips_baseline": {"loss": 29499.722900390625, "lat_long_loss": 29499.722900390625, "guiding_loss": 0.0, "n_loss": 29.323780219076166, "n_lat_long_loss": 29.323780219076166, "n_guiding_loss": 0.0, "len_data": 1006, "metric": {"Haversine": 8219.253208032049, "Geoguessr": 202.27129201592845, "count": 1006}}}
+{
+    "gips": {
+        "guiding_loss": 15.243046641349792,
+        "lat_long_loss": 29572.130615234375,
+        "len_data": 1006,
+        "loss": 29587.373779296875,
+        "metric": {
+            "count": 1006,
+            "Geoguessr": 201.4214156891246,
+            "Haversine": 8227.381149277662
+        },
+        "n_guiding_loss": 0.015152133838319874,
+        "n_lat_long_loss": 29.395756078761803,
+        "n_loss": 29.41090832932095
+    },
+    "gips_baseline": {
+        "guiding_loss": 0.0,
+        "lat_long_loss": 29499.722900390625,
+        "len_data": 1006,
+        "loss": 29499.722900390625,
+        "metric": {
+            "count": 1006,
+            "Geoguessr": 202.27129201592845,
+            "Haversine": 8219.253208032049
+        },
+        "n_guiding_loss": 0.0,
+        "n_lat_long_loss": 29.323780219076166,
+        "n_loss": 29.323780219076166
+    },
+    "gips_reg_head_no_multimod": {
+        "guiding_loss": 0.0,
+        "lat_long_loss": 29628.89306640625,
+        "len_data": 1006,
+        "loss": 29628.89306640625,
+        "metric": {
+            "count": 1006,
+            "Geoguessr": 201.88744719361912,
+            "Haversine": 8227.566700693244
+        },
+        "n_guiding_loss": 0.0,
+        "n_lat_long_loss": 29.452179986487327,
+        "n_loss": 29.452179986487327
+    }
+}
