@@ -11,6 +11,16 @@ from gips import Gips
 from datasets import load_dataset
 from utils.metrics import Metric
 import json
+from transformers import AutoModel
+from transformers import pipeline
+import joblib
+from huggingface_hub import hf_hub_download
+from huggingface_hub import PyTorchModelHubMixin
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+HF_AUTH_TOKEN = os.getenv("HF_AUTH_TOKEN")
 
 # import os
 # from torch.utils.data import Dataset
@@ -45,21 +55,31 @@ def batched_evaluation_gips():
 
     evaluation = {}
 
-    for use_multimodal_inputs in [True, False]:
+    for option, use_multimodal_inputs in zip(['gips', 'gips_reg_head_no_multimod', 'gips_baseline'], [True, False, False]):
 
         metric = Metric()
+        REPO_ID = "gips-mai"
 
         model = Gips(img_embedding_size=1024,
-                    descript_embedding_size=768,
-                    clue_embedding_size=768,
-                    use_multimodal_inputs=use_multimodal_inputs,
-                    is_training=True).to(device)
+                 descript_embedding_size=768,
+                 clue_embedding_size=768,
+                 use_multimodal_inputs=use_multimodal_inputs,
+                 is_training=False).to(device)
 
+        if option == 'gips':
+            model.from_pretrained('gips-mai/'+option)
+        elif option == 'gips_reg_head_no_multimod':
+            model.from_pretrained('gips-mai/'+option)
+        elif option == 'gips_baseline':
+            model.from_pretrained('gips-mai/'+option)
+        else:
+            raise NotImplementedError
+        
         loss = 0.0
         lat_long_loss = 0.0
         guiding_loss = 0.0
 
-        dataset = filter_dataset(load_dataset("gips-mai/osv5m_ann", split="01")) #TODO: load test dataset
+        dataset = filter_dataset(load_dataset("gips-mai/osv5m_ann", split="00"))
 
         dataset = dataset.select(
             i for i in range(len(dataset))
@@ -69,7 +89,7 @@ def batched_evaluation_gips():
         # dataset = dataset[:8]
 
         batch_size=128
-        for idx, batch in enumerate(DataLoader(dataset, batch_size=batch_size, shuffle=False)):
+        for idx, batch in enumerate(tqdm(DataLoader(dataset, batch_size=batch_size, shuffle=True), desc=option)):
 
             # Reshape and transpose the data
             img_enc = torch.stack(batch["img_encoding"]).t().float().to(device)
@@ -92,45 +112,20 @@ def batched_evaluation_gips():
             lat_long_loss += ll_loss.item()
             if use_multimodal_inputs:
                 guiding_loss += g_loss.item()
-
-            if use_multimodal_inputs:
-                print('Multimodal Input:')
-            else:
-                print('Just Images:')
-            # çprint(f"    Total loss:    {loss/((idx+1)*batch_size)}")
-            print(f"    Lat Long Loss: {lat_long_loss/((idx+1)*batch_size)}")
-            if use_multimodal_inputs:
-                print(f"    Guiding Loss:  {guiding_loss/((idx+1)*batch_size)}")
-            print()
-
-            print('Metric:', metric.compute())
-
-            break
-
-        if use_multimodal_inputs:
-            print('Multimodal Input:')
-        else:
-            print('Just Images:')
-        # print(f"    Total loss:    {loss}")
-        print(f"    Lat Long Loss: {lat_long_loss}")
-        if use_multimodal_inputs:
-            print(f"    Guiding Loss:  {guiding_loss}")
-
-        if use_multimodal_inputs:
-            s = 'multimodal_input'
-        else:
-            s = 'image_only'
-
-        evaluation[s] = {
+        
+        m = metric.compute()
+        evaluation[option] = {
             'loss': loss,
             'lat_long_loss': lat_long_loss,
             'guiding_loss': guiding_loss,
-            'metric': metric.compute(),
+            'n_loss': loss/len(dataset),
+            'n_lat_long_loss': lat_long_loss/len(dataset),
+            'n_guiding_loss': guiding_loss/len(dataset),
+            'len_data': len(dataset),
+            'metric': m
         }
-
-    print(evaluation)
     
-    with open("../data/eval.json", "w") as f:
+    with open(str(Path(__file__).parent.parent / "data" / "eval.json"), "w") as f:
         json.dump(evaluation, f)
 
 if __name__ == '__main__':
