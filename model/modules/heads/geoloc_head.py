@@ -58,8 +58,14 @@ class GeoLogHead(nn.Module):
         for b in range(cell_target.shape[0]):
             cell_target_one_hot[b][cell_target[b]] = 1
 
-        return (self.coordinate_loss(pred['gps'].float(), coordinate_target) +
-                self.cell_loss(pred['label'], cell_target_one_hot))
+        coords_loss = self.coordinate_loss(pred['gps'].float(), coordinate_target)
+        cell_loss =  self.cell_loss(pred['label'], cell_target_one_hot)
+
+        print("coords_loss: " + str(coords_loss))
+        print("cell_loss: " + str(cell_loss))
+
+        return coords_loss + cell_loss
+
 
 
 class MLPCentroid(nn.Module):

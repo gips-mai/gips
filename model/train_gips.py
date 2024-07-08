@@ -146,7 +146,7 @@ def batched_training_gips(epochs=2, use_multimodal_inputs=True):
                 total_loss.backward()
                 optimizer.step()
 
-        model.push_to_hub("gips-mai/gips", token=HF_AUTH_TOKEN)
+        #model.push_to_hub("gips-mai/gips", token=HF_AUTH_TOKEN)
 
         #torch.save({
         #    'epoch': epoch,

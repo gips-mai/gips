@@ -21,8 +21,8 @@ class GuidingHead(nn.Module):
         static clues. Used as a guiding head for the main model to learn which clues are important
         for a given image. """
         self.classifier = nn.Sequential(
-            nn.Linear(self.aggr_clue_emb_size, 1024),
-            nn.Linear(1024, 512),
+            nn.Linear(self.aggr_clue_emb_size, 512),
+            #nn.Linear(1024, 512),
             nn.Linear(512, self.hot_encoding_size),
         )
 
@@ -90,8 +90,13 @@ class GuidingHead(nn.Module):
             The combined loss of the Guiding Head """
         # Country loss + Pseudo label loss
 
-        return (self.comp_country_loss(country_pred, country_target) * (1 - self.alpha) +
-                self.comp_pseudo_label_loss(attention_scores, country_target) * self.alpha)
+        country_loss = self.comp_country_loss(country_pred, country_target)
+        pseudo_loss = self.comp_pseudo_label_loss(attention_scores, country_target)
+
+        print("Country_loss: " + str(country_loss))
+        print("Pseudo loss: " + str(pseudo_loss))
+
+        return country_loss * (1 - self.alpha) + pseudo_loss * self.alpha
 
     def training_step(self, aggr_clues, target_country, attn_scores):
         """ Performs a forward pass and computes the loss of the Guiding Head."""
