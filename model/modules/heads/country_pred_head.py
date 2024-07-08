@@ -3,15 +3,15 @@ import torch.nn as nn
 
 
 class GuidingHead(nn.Module):
-    def __init__(self, aggr_clue_emb_size, clues, alpha=0.75, n_countries=219,
+    def __init__(self, aggr_clue_emb_size, clues, alpha=0.75,
                  hot_encoding_size=221) -> None:
         super().__init__()
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         # Parameter settings
         self.alpha = alpha  # The influence of the pseudo label loss w.r.t the country classification loss
-        self.n_countries = n_countries  # Number of countries in the dataset
         self.aggr_clue_emb_size = aggr_clue_emb_size  # Size of the aggr clues embedding
-
+        self.hot_encoding_size = hot_encoding_size
         # Initializations
         self.init_layers()
         self.init_loss_functions(clues, hot_encoding_size)
@@ -23,12 +23,11 @@ class GuidingHead(nn.Module):
         self.classifier = nn.Sequential(
             nn.Linear(self.aggr_clue_emb_size, 1024),
             nn.Linear(1024, 512),
-            nn.Linear(512, self.n_countries),
+            nn.Linear(512, self.hot_encoding_size),
         )
 
     def init_loss_functions(self, clues, hot_encoding_size):
         """ Initializes the loss functions used by the guiding head. """
-
         # Create a matrix of the country encodings
         self.clue_mat = torch.zeros((len(clues['country_one_hot_enc']), hot_encoding_size))
         for i, country_encs in enumerate(clues['country_one_hot_enc']):
@@ -37,7 +36,7 @@ class GuidingHead(nn.Module):
                     self.clue_mat[i] += torch.tensor(country_enc)
         # The matrix is a one-hot encoding of the countries, therfore countries that were added multiple times
         # must be clipped to 1
-        self.clue_mat = torch.clip(self.clue_mat, 0, 1)
+        self.clue_mat = torch.clip(self.clue_mat, 0, 1).to(self.device)
 
         self.bce_loss = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor(1))  # can be changed
         self.ce_loss = torch.nn.CrossEntropyLoss()
@@ -55,7 +54,17 @@ class GuidingHead(nn.Module):
         # gt = num clue X n_enc * n_enc X 1
         # gt = num clue X 1
         # loss = gt - attention_prediction
-        return self.bce_loss(self.clue_mat @ gt_country.view(-1, 1), attention_prediction)
+
+        batch_size = gt_country.size(0)
+
+        # Convert gt_country into a matrix of column vectors of size (batch_size, num_clues, 1) for the scalar product
+        gt_country = gt_country.reshape(batch_size, -1, 1)
+        # Adjust the clue matrix to the batch size to allow for the scalar product on each sample
+        # Batch_size x Clue_num x embedding size
+        # Scalar product returns a vector which only has 1s where the country is present in the sample
+        gt_attention = self.clue_mat.unsqueeze(dim=0).expand((batch_size, -1, -1)) @ gt_country
+        gt_attention = gt_attention.squeeze(dim=2)
+        return self.bce_loss(gt_attention, attention_prediction)
 
     def comp_country_loss(self, country_prediction, gt_country):
         """ Computes the country classification loss.
@@ -80,7 +89,6 @@ class GuidingHead(nn.Module):
         Returns:
             The combined loss of the Guiding Head """
         # Country loss + Pseudo label loss
-
 
         return (self.comp_country_loss(country_pred, country_target) * (1 - self.alpha) +
                 self.comp_pseudo_label_loss(attention_scores, country_target) * self.alpha)

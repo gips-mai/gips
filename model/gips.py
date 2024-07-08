@@ -1,14 +1,15 @@
 from torch.nn.modules.module import T
 import torch.nn
-import model.modules.heads.country_pred_head as cph
-from model.modules.heads.geoloc_head import GeoLogHead
-from model.modules import attention_module as am, backbone as bb
+import modules.heads.country_pred_head as cph
+from modules.heads.geoloc_head import GeoLogHead
+from modules import attention_module as am, backbone as bb
 from torch import nn
-import os
 from datasets import load_dataset
+from huggingface_hub import PyTorchModelHubMixin
 
 
-class Gips(nn.Module):
+
+class Gips(nn.Module, PyTorchModelHubMixin):
     """ Assembly of the gips pipeline components. """
 
     def __init__(self, img_embedding_size, descript_embedding_size,
@@ -72,15 +73,17 @@ class Gips(nn.Module):
             lat_long_pred, aggr_clues, attn_scores = (prediction.lat_long_pred,
                                                       prediction.aggr_clues,
                                                       prediction.attn_scores)
-            total_loss += self.guiding_head.get_comb_loss(aggr_clues, target_country, attn_scores)
-
+            country_pred = self.guiding_head(aggr_clues)
+            total_loss += self.guiding_head.get_comb_loss(country_pred, target_country, attn_scores)
         else:
             lat_long_pred = prediction.lat_long_pred
 
-        total_loss += self.lat_long_head.get_loss(lat_long_pred, coordinate_target)
+        total_loss += self.lat_long_head.get_loss(lat_long_pred, target_cell, coordinate_target)
+
+        return total_loss
 
     def _prepare_data(self):
-        quad_tree_path = os.path.join(".", "..", "data", "quad_tree", "quadtree_10_1000.csv")
+        quad_tree_path = "quadtree_10_1000.csv"
         clues = load_dataset("gips-mai/all_clues_enc", split='train')
 
         return quad_tree_path, clues
