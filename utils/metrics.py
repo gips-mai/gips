@@ -23,22 +23,18 @@ class Metric:
         return output
 
     def haversine(pred:torch.Tensor, gt:torch.Tensor):
-        # from https://github.com/gastruc/osv5m/blob/main/metrics/utils.py
-        # expects inputs to be np arrays in (lat, lon) format as radians
-        # N x 2
+        R = 6371  # radius of the earth
 
-        # calculate the difference in latitude and longitude between the predicted and ground truth points
-        lat_diff = pred[:, 0] - gt[:, 0]
-        lon_diff = pred[:, 1] - gt[:, 1]
+        lat1, lon1 = torch.deg2rad(pred).t()
+        lat2, lon2 = torch.deg2rad(gt).t()
 
-        # calculate the haversine formula components
-        lhs = torch.sin(lat_diff / 2) ** 2
-        rhs = torch.cos(pred[:, 0]) * torch.cos(gt[:, 0]) * torch.sin(lon_diff / 2) ** 2
-        a = lhs + rhs
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
 
-        # calculate the final distance using the haversine formula
-        c = 2 * torch.arctan2(torch.sqrt(a), torch.sqrt(1 - a))
-        distance = 6371 * c
+        a = torch.sin(dlat/2)**2 + torch.cos(lat1) * torch.cos(lat2) * torch.sin(dlon/2)**2
+        c = 2 * torch.atan2(torch.sqrt(a), torch.sqrt(1-a))
+
+        distance = R * c
 
         return distance
 
@@ -48,4 +44,4 @@ class Metric:
 
         # the factor is typically 2000 or 1492.7
 
-        return 5000 * torch.exp(-Metric.haversine(pred, gt)/2000)
+        return 5000 * torch.exp(-Metric.haversine(pred, gt)/factor)
