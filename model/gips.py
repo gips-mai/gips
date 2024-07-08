@@ -6,6 +6,7 @@ from modules import attention_module as am, backbone as bb
 from torch import nn
 from datasets import load_dataset
 from huggingface_hub import PyTorchModelHubMixin
+from pathlib import Path
 
 
 
@@ -66,7 +67,8 @@ class Gips(nn.Module, PyTorchModelHubMixin):
 
         return GipsOutput(latt_long_pred, attn_scores, aggr_clues)
 
-    def get_losses(self: T, enc_img, enc_descr, target_cell, target_country, coordinate_target) -> T:
+    def get_individual_losses(self: T, enc_img, enc_descr, target_cell, target_country, coordinate_target)  -> T:
+        """Returns model prediction, total loss, lat_long_loss and guiding_loss"""
 
         prediction = self.forward(enc_img, enc_descr, target_cell)
         total_loss = 0.0
@@ -76,16 +78,18 @@ class Gips(nn.Module, PyTorchModelHubMixin):
                                                       prediction.aggr_clues,
                                                       prediction.attn_scores)
             country_pred = self.guiding_head(aggr_clues)
-            total_loss += self.guiding_head.get_comb_loss(country_pred, target_country, attn_scores)
+            guiding_loss = self.guiding_head.get_comb_loss(country_pred, target_country, attn_scores)
+            total_loss += guiding_loss
         else:
+            guiding_loss = None
             lat_long_pred = prediction.lat_long_pred
 
-        total_loss += self.lat_long_head.get_loss(lat_long_pred, target_cell, coordinate_target)
-
-        return total_loss
+        lat_long_loss = self.lat_long_head.get_loss(lat_long_pred, target_cell, coordinate_target)
+        total_loss += lat_long_loss
+        return prediction, total_loss, lat_long_loss, guiding_loss
 
     def _prepare_data(self):
-        quad_tree_path = "quadtree_10_1000.csv"
+        quad_tree_path = str(Path(__file__).parent.parent / "data" / "quad_tree" / "quadtree_10_1000.csv")
         clues = load_dataset("gips-mai/all_clues_enc", split='train')
 
         return quad_tree_path, clues
