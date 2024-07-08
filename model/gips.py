@@ -26,13 +26,14 @@ class Gips(nn.Module, PyTorchModelHubMixin):
 
     def init_modules(self, img_embedding_size, descript_embedding_size, clue_embedding_size, clues, quad_tree_path):
         """ Initialize the modules of the Gips model."""
-        self.img_encoder = bb.StreetCLIP()  # Image encoder
+        #self.img_encoder = bb.StreetCLIP()  # Image encoder
         self.lin_att = am.LinearAttention(attn_input_img_size=img_embedding_size,
                                           text_features_size=len(clues),
                                           hidden_layer_size_0=1024,
                                           hidden_layer_size_1=1024)
-        self.att_weight_aggr = am.AttentionWeightedAggregation(temperature=0.01, clues=clues)
-        self.guiding_head = cph.GuidingHead(aggr_clue_emb_size=clue_embedding_size, clues=clues)
+        self.att_weight_aggr = am.AttentionWeightedAggregation(temperature=1, clues=clues)
+        if self.use_multimodal_inputs:
+            self.guiding_head = cph.GuidingHead(aggr_clue_emb_size=clue_embedding_size, clues=clues)
 
         if self.use_multimodal_inputs:
             mid_initial_dim = img_embedding_size + clue_embedding_size + descript_embedding_size
@@ -52,6 +53,7 @@ class Gips(nn.Module, PyTorchModelHubMixin):
             GipsOutput: Model prediction. """
 
         attn_scores = None
+        aggr_clues = None
         # If multimodal inputs are used compute the aggregated clues representation and use it together with the encoded
         # image and the encoded description to predict the latitude and longitude
         if self.use_multimodal_inputs:
