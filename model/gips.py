@@ -20,6 +20,7 @@ class Gips(nn.Module, PyTorchModelHubMixin):
 
         quad_tree_path, clues = self._prepare_data()
         self.use_multimodal_inputs = use_multimodal_inputs
+        self.use_reg_head = use_reg_head
 
         self.training = is_training
         self.init_modules(img_embedding_size, descript_embedding_size, clue_embedding_size, clues, quad_tree_path)

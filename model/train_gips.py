@@ -147,7 +147,7 @@ def batched_training_gips(epochs=2, use_multimodal_inputs=True, use_reg_head=Tru
 
                 coordinate_target = torch.cat((latitude_target, longitude_target), dim=1).to(device)
 
-                total_loss = model.get_losses(img_enc, text_enc, target_cell, target_country, coordinate_target)
+                total_loss = model.get_individual_losses(img_enc, text_enc, target_cell, target_country, coordinate_target)[1]
 
                 epoch_loss += total_loss.item()
                 batch_count += 1
