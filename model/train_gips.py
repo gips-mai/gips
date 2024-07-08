@@ -16,7 +16,6 @@ load_dotenv()
 HF_AUTH_TOKEN = os.getenv("HF_AUTH_TOKEN")
 osv5m_ann = load_dataset("gips-mai/osv5m_ann")
 
-print(HF_AUTH_TOKEN)
 def test_upload():
     model = Gips(img_embedding_size=1024,
                  descript_embedding_size=768,
@@ -92,7 +91,7 @@ def filter_dataset(dummy_dataset):
 
 def batched_training_gips(epochs=2, use_multimodal_inputs=True, use_reg_head=True):
     # fix random seed
-    model_id = "gips_reg_head_no_multimod"
+    model_id = "gips_reg_head_multimod"
     torch.manual_seed(0)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -102,6 +101,7 @@ def batched_training_gips(epochs=2, use_multimodal_inputs=True, use_reg_head=Tru
                  use_multimodal_inputs=use_multimodal_inputs,
                  is_training=True,
                  use_reg_head=use_reg_head).to(device)
+    model.train()
 
     if use_reg_head:
         lat_long_params = model.lat_long_head.parameters()
@@ -187,4 +187,4 @@ def batched_training_gips(epochs=2, use_multimodal_inputs=True, use_reg_head=Tru
 if __name__ == '__main__':
     # test_inference()
     # test_batched_inference()
-    batched_training_gips(epochs=10, use_multimodal_inputs=False)
+    batched_training_gips(epochs=10, use_multimodal_inputs=True, use_reg_head=True)

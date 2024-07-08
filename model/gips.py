@@ -37,8 +37,6 @@ class Gips(nn.Module, PyTorchModelHubMixin):
         self.att_weight_aggr = am.AttentionWeightedAggregation(temperature=1, clues=clues)
         if self.use_multimodal_inputs:
             self.guiding_head = cph.GuidingHead(aggr_clue_emb_size=clue_embedding_size, clues=clues)
-
-        if self.use_multimodal_inputs:
             mid_initial_dim = img_embedding_size + clue_embedding_size + descript_embedding_size
         else:
             mid_initial_dim = img_embedding_size
@@ -48,7 +46,6 @@ class Gips(nn.Module, PyTorchModelHubMixin):
                                             quad_tree_path=quad_tree_path,
                                             is_training=self.training)
         else:
-
             hidden_dim = [128, 32, 2]
             if self.use_multimodal_inputs:
                 hidden_dim = [1024] + hidden_dim

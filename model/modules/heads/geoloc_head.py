@@ -174,7 +174,6 @@ class HybridHeadCentroid(nn.Module):
                 # batch_size X 0 -> batch_size X 1 X 1 -> repeat -> batch_size X 1 X 2
                 gt_label.unsqueeze(-1).expand(regression.shape[0], 1, 2),
             )[:, 0, :]
-            # TODO: fix size
             # If the predicted regression values for (x,y)/(long,latt) are greater zero
             # select the ground truth regression values from the upper bound of the respective cell
             # Otherwise use the lower bound

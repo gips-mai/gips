@@ -1,6 +1,7 @@
+import datasets
 from PIL import Image
 import requests
-from datasets import DatasetDict, Dataset
+from datasets import DatasetDict, Dataset, load_dataset
 from dotenv import load_dotenv
 import os
 from pathlib import Path
@@ -48,9 +49,7 @@ def test_clip():
     print(f"image_features: {image_features.pooler_output.shape}")
 
 
-def inference_loop():
-    print(f"Processing images from {RAW_OSV5M_DIR}")
-
+def init_model():
     # Initialize CLIP model and processor
     model = CLIPVisionModel.from_pretrained(model_name).to("cuda")
     processor = CLIPImageProcessor.from_pretrained(processor_name)
@@ -63,6 +62,14 @@ def inference_loop():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     print(f"Device: {device}")
+
+    return model, processor, image_size, device
+
+
+def inference_loop():
+    print(f"Processing images from {RAW_OSV5M_DIR}")
+
+    model, processor, image_size, device = init_model()
 
     splits = ['01', '02', '03', '04']
     full_enc_dataset = DatasetDict()
@@ -105,13 +112,47 @@ def inference_loop():
     return full_enc_dataset
 
 
+def inference_loop_test_split():
+    # Download the enc_descr dataset to determine the ids of the images to process in split 00
+    enc_descr_00 = load_dataset("gips-mai/enc_descr", split="00")
+    image_ids = enc_descr_00['img_id']
+
+    model, processor, image_size, device = init_model()
+
+    enc_images_split_00 = []
+
+    for img_id in tqdm(image_ids, desc="Processing split 00"):
+        img_path = os.path.join(RAW_OSV5M_DIR, '00', img_id)
+        image = Image.open(img_path)
+        image = image.resize((image_size, image_size))
+
+        inputs = processor(images=image, return_tensors="pt", do_resize=False, do_center_crop=False).to(device)
+        with torch.no_grad():
+            image_features = model(**inputs).pooler_output
+
+        enc_images_split_00.append({'img_id': img_id, 'encoding': image_features.squeeze(dim=0).cpu().numpy()})
+        #print(f"Processed image {img_id}")
+        #print(f"Encoding: {image_features.squeeze(dim=0).cpu().numpy().shape}")
+
+    enc_images_split_00 = Dataset.from_list(enc_images_split_00)
+
+    # Upload as new split to the enc_img dataset
+    enc_img = load_dataset("gips-mai/enc_img")
+    enc_img['00'] = enc_images_split_00
+    enc_img.save_to_disk("gips-mai/enc_img")
+
+
 if __name__ == "__main__":
     # test_clip()
-    full_enc_dataset = inference_loop()
-    print(full_enc_dataset)
+    # full_enc_dataset = inference_loop()
+    # print(full_enc_dataset)
 
     # Save dataset locally
-    full_enc_dataset.save_to_disk("data/enc_img")
+    # full_enc_dataset.save_to_disk("data/enc_img")
 
     # Upload dataset to Hugging Face
-    full_enc_dataset.push_to_hub('gips-mai/enc_img', token=HF_AUTH_TOKEN)
+    # full_enc_dataset.push_to_hub('gips-mai/enc_img', token=HF_AUTH_TOKEN)
+
+    inference_loop_test_split()
+    dataset = datasets.load_from_disk("gips-mai/enc_img")
+    dataset.push_to_hub('gips-mai/enc_img', token=HF_AUTH_TOKEN)
