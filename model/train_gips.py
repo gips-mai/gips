@@ -92,6 +92,7 @@ def filter_dataset(dummy_dataset):
 
 def batched_training_gips(epochs=2, use_multimodal_inputs=True, use_reg_head=True):
     # fix random seed
+    model_id = "gips"
     torch.manual_seed(0)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -118,9 +119,9 @@ def batched_training_gips(epochs=2, use_multimodal_inputs=True, use_reg_head=Tru
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
 
     # Initialize TensorBoard writer
-    writer = SummaryWriter(f'runs/gips_training_multimodal_{use_multimodal_inputs}')
+    writer = SummaryWriter(f'runs/{model_id}_multimodal_{use_multimodal_inputs}')
 
-    for epoch in tqdm(range(epochs), desc="Epochs"):
+    for epoch in tqdm(range(epochs), desc=f"Epochs - {model_id}"):
         epoch_loss = 0.0
         batch_count = 0
 
@@ -133,7 +134,7 @@ def batched_training_gips(epochs=2, use_multimodal_inputs=True, use_reg_head=Tru
             )
 
             for batch_idx, batch in enumerate(
-                    tqdm(DataLoader(dummy_dataset, batch_size=2, shuffle=True), desc="Batches")):
+                    tqdm(DataLoader(dummy_dataset, batch_size=32, shuffle=True), desc=f"Batches - {model_id}")):
                 optimizer.zero_grad()
 
                 # Reshape and transpose the data
@@ -152,6 +153,16 @@ def batched_training_gips(epochs=2, use_multimodal_inputs=True, use_reg_head=Tru
                 batch_count += 1
 
                 total_loss.backward()
+
+                # Check gradient norms
+                total_norm = 0
+                for p in model.parameters():
+                    if p.grad is not None:
+                        param_norm = p.grad.data.norm(2)
+                        total_norm += param_norm.item() ** 2
+                total_norm = total_norm ** (1. / 2)
+                writer.add_scalar('Gradients/norm', total_norm, epoch * len(dummy_dataset) + batch_idx)
+
                 optimizer.step()
 
                 # Log batch loss
@@ -164,7 +175,7 @@ def batched_training_gips(epochs=2, use_multimodal_inputs=True, use_reg_head=Tru
         # Log learning rate
         writer.add_scalar('Learning rate', scheduler.get_last_lr()[0], epoch)
 
-        #model.push_to_hub("gips-mai/gips_1", token=HF_AUTH_TOKEN)
+        model.push_to_hub(f"gips-mai/{model_id}", token=HF_AUTH_TOKEN)
 
         print(f"Epoch {epoch} - Loss: {avg_epoch_loss}")
         scheduler.step()
