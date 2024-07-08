@@ -26,9 +26,6 @@ class Metric:
     def haversine(pred:torch.Tensor, gt:torch.Tensor):
         R = 6371  # radius of the earth
 
-        s1 = pred.shape
-        s2 = gt.shape
-
         lat1, lon1 = torch.deg2rad(pred).t()
         lat2, lon2 = torch.deg2rad(gt).t()
 
