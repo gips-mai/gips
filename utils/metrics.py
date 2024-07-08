@@ -9,21 +9,25 @@ class Metric:
         self.count = 0
 
     def update(self, pred:torch.Tensor, gt:torch.Tensor):
-        self.haversine_sum += Metric.haversine(pred, gt)
-        self.geogame_sum += Metric.geogame_score(pred, gt)
+        self.haversine_sum += Metric.haversine(pred, gt).sum(dim=0)
+        self.geogame_sum += Metric.geogame_score(pred, gt).sum(dim=0)
         self.count += pred.shape[0] # batch size
 
     def compute(self):
         # compute the Metric for all predictions
         output = {
-            "Haversine": self.haversine_sum / self.count,
-            "Geoguessr": self.geogame_sum/ self.count,
+            "Haversine": float(self.haversine_sum.item())/ self.count,
+            "Geoguessr": float(self.geogame_sum.item())/ self.count,
+            "count": self.count
         }
 
         return output
 
     def haversine(pred:torch.Tensor, gt:torch.Tensor):
         R = 6371  # radius of the earth
+
+        s1 = pred.shape
+        s2 = gt.shape
 
         lat1, lon1 = torch.deg2rad(pred).t()
         lat2, lon2 = torch.deg2rad(gt).t()
