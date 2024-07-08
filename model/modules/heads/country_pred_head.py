@@ -64,7 +64,7 @@ class GuidingHead(nn.Module):
         # Scalar product returns a vector which only has 1s where the country is present in the sample
         gt_attention = self.clue_mat.unsqueeze(dim=0).expand((batch_size, -1, -1)) @ gt_country
         gt_attention = gt_attention.squeeze(dim=2)
-        return self.bce_loss(gt_attention, attention_prediction)
+        return self.bce_loss(attention_prediction, gt_attention)
 
     def comp_country_loss(self, country_prediction, gt_country):
         """ Computes the country classification loss.

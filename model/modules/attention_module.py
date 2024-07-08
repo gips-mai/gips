@@ -63,13 +63,17 @@ class AttentionWeightedAggregation:
         batch_size = attention.shape[0]
 
         # normalize with sigmoid to [0,1]
-        f1 = self.weighting_f(self.temperature * attention)
+        batched_clues_weights = self.weighting_f(self.temperature * attention)
 
         # adjust dimensions to allow for element-wise multiplication in batches
-        f1 = f1.unsqueeze(dim=2)
-        f2 = self.clue_embeddings.expand(batch_size, 1, 1)
+        # f1: [batch_size, num_clues, 1]
+        # f2: [batch_size, num_clues, clue_embedding_size]
+        batched_clues_weights = batched_clues_weights.unsqueeze(dim=2)
+        unsqueezed_clue_embeddings = self.clue_embeddings.unsqueeze(dim=0)
+        batched_clue_embs = unsqueezed_clue_embeddings.expand(batch_size, -1, -1)
 
         # compute element-wise multiplication for each batch
-        f2 = f2 * f1
+        weighted_clue_embs = batched_clue_embs * batched_clues_weights
 
-        return torch.sum(f2, dim=1) / self.clue_embeddings.shape[1]
+        # Normalize the weighted sum of clue embeddings
+        return torch.sum(weighted_clue_embs, dim=1) / self.clue_embeddings.shape[0]

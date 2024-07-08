@@ -107,8 +107,8 @@ def batched_training_gips(epochs=2, use_multimodal_inputs=True):
     else:
         params = model.geohead.geohead_mid_network.parameters()
 
-    optimizer = optim.Adam(params)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5)
+    optimizer = optim.Adam(params, lr=1e-3)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
 
     for epoch in tqdm(range(epochs), desc="Epochs"):
         epoch_loss = 0.0
@@ -146,7 +146,7 @@ def batched_training_gips(epochs=2, use_multimodal_inputs=True):
                 total_loss.backward()
                 optimizer.step()
 
-        #model.push_to_hub("gips-mai/gips", token=HF_AUTH_TOKEN)
+        model.push_to_hub("gips-mai/gips_1", token=HF_AUTH_TOKEN)
 
         #torch.save({
         #    'epoch': epoch,
