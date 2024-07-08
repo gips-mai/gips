@@ -51,13 +51,15 @@ class GeoLogHead(nn.Module):
         self.coordinate_loss = nn.MSELoss()
 
     def forward(self, aggr_input, cell_target=None):
-        return self.hybrid_head_centroid(self.geoloc_head_mid_network(aggr_input), cell_target)
+        output_midnetwork = self.geoloc_head_mid_network(aggr_input)
+        return self.hybrid_head_centroid(output_midnetwork, cell_target)
 
     def get_loss(self, pred, cell_target, coordinate_target):
         cell_target_one_hot = torch.zeros((cell_target.shape[0], self.final_dim)).to(self.device)
         for b in range(cell_target.shape[0]):
             cell_target_one_hot[b][cell_target[b]] = 1
 
+        # TODO: Discuss - Using a target size (torch.Size([128, 2])) that is different to the input size (torch.Size([128, 128, 2]))
         coords_loss = self.coordinate_loss(pred['gps'].float(), coordinate_target)
         cell_loss =  self.cell_loss(pred['label'], cell_target_one_hot)
 
@@ -154,6 +156,7 @@ class HybridHeadCentroid(nn.Module):
         self.cell_center = self.cell_center.to(classification.device)
         self.cell_size_down = self.cell_size_down.to(classification.device)
 
+        # Extract the regression values
         regression = x[..., self.final_dim:]
 
         if self.use_tanh:
@@ -171,6 +174,10 @@ class HybridHeadCentroid(nn.Module):
                 # batch_size X 0 -> batch_size X 1 X 1 -> repeat -> batch_size X 1 X 2
                 gt_label.unsqueeze(-1).expand(regression.shape[0], 1, 2),
             )[:, 0, :]
+            # TODO: fix size
+            # If the predicted regression values for (x,y)/(long,latt) are greater zero
+            # select the ground truth regression values from the upper bound of the respective cell
+            # Otherwise use the lower bound
             size = torch.where(
                 regression > 0,
                 self.cell_size_up[gt_label],

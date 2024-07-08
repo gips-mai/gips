@@ -10,6 +10,7 @@ from torch.utils.data import Dataset
 from datasets import load_dataset
 import pandas
 from dotenv import load_dotenv
+from torch.utils.tensorboard import SummaryWriter
 
 load_dotenv()
 HF_AUTH_TOKEN = os.getenv("HF_AUTH_TOKEN")
@@ -110,11 +111,14 @@ def batched_training_gips(epochs=2, use_multimodal_inputs=True):
     optimizer = optim.Adam(params, lr=1e-3)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
 
+    # Initialize TensorBoard writer
+    writer = SummaryWriter(f'runs/gips_training_multimodal_{use_multimodal_inputs}')
+
     for epoch in tqdm(range(epochs), desc="Epochs"):
         epoch_loss = 0.0
+        batch_count = 0
 
         for split in ["01", "02", "03", "04"]:
-
             dummy_dataset = filter_dataset(load_dataset("gips-mai/osv5m_ann", split=split))
 
             dummy_dataset = dummy_dataset.select(
@@ -123,16 +127,13 @@ def batched_training_gips(epochs=2, use_multimodal_inputs=True):
             )
 
             for batch_idx, batch in enumerate(
-                    tqdm(DataLoader(dummy_dataset, batch_size=128, shuffle=True), desc="Batches")):
+                    tqdm(DataLoader(dummy_dataset, batch_size=2, shuffle=True), desc="Batches")):
                 optimizer.zero_grad()
 
                 # Reshape and transpose the data
                 img_enc = torch.stack(batch["img_encoding"]).t().float().to(device)
                 text_enc = torch.stack(batch["desc_encoding"]).t().float().to(device)
-                # Target cell is an index, therefore it should be an integer
                 target_cell = torch.stack(list(batch["quadtree_10_1000"])).t().to(device).unsqueeze(dim=1)
-                # The dataloader returns a list of one-hot encodings,
-                # so we need to convert it to a numpy array and then to a tensor
                 target_country = torch.tensor(np.array(batch["country_one_hot_enc"][0])).t().float().to(device)
                 latitude_target = torch.stack(list(batch["latitude"])).t().float().to(device).unsqueeze(dim=1)
                 longitude_target = torch.stack(list(batch["longitude"])).t().float().to(device).unsqueeze(dim=1)
@@ -142,21 +143,28 @@ def batched_training_gips(epochs=2, use_multimodal_inputs=True):
                 total_loss = model.get_losses(img_enc, text_enc, target_cell, target_country, coordinate_target)
 
                 epoch_loss += total_loss.item()
+                batch_count += 1
 
                 total_loss.backward()
                 optimizer.step()
 
-        model.push_to_hub("gips-mai/gips_1", token=HF_AUTH_TOKEN)
+                # Log batch loss
+                writer.add_scalar('Loss/batch', total_loss.item(), epoch * len(dummy_dataset) + batch_idx)
 
-        #torch.save({
-        #    'epoch': epoch,
-        #    'model_state_dict': model.state_dict(),
-        #    'optimizer_state_dict': optimizer.state_dict(),
-        #    'loss': epoch_loss,
-        #}, "gips_epoch_{}_use_multimod_{}.pt".format(epoch, "yes" if use_multimodal_inputs else "no"))
+        # Log epoch loss
+        avg_epoch_loss = epoch_loss / batch_count
+        writer.add_scalar('Loss/epoch', avg_epoch_loss, epoch)
 
-        print(f"Epoch {epoch} - Loss: {epoch_loss}")
+        # Log learning rate
+        writer.add_scalar('Learning rate', scheduler.get_last_lr()[0], epoch)
+
+        #model.push_to_hub("gips-mai/gips_1", token=HF_AUTH_TOKEN)
+
+        print(f"Epoch {epoch} - Loss: {avg_epoch_loss}")
         scheduler.step()
+
+    writer.close()
+    print("Training finished. TensorBoard logs saved.")
 
 
 if __name__ == '__main__':
