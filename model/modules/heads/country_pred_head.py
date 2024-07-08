@@ -93,8 +93,8 @@ class GuidingHead(nn.Module):
         country_loss = self.comp_country_loss(country_pred, country_target)
         pseudo_loss = self.comp_pseudo_label_loss(attention_scores, country_target)
 
-        print("Country_loss: " + str(country_loss))
-        print("Pseudo loss: " + str(pseudo_loss))
+        # print("Country_loss: " + str(country_loss))
+        # print("Pseudo loss: " + str(pseudo_loss))
 
         return country_loss * (1 - self.alpha) + pseudo_loss * self.alpha
 
