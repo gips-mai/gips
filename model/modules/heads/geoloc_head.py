@@ -63,8 +63,8 @@ class GeoLogHead(nn.Module):
         coords_loss = self.coordinate_loss(pred['gps'].float(), coordinate_target)
         cell_loss =  self.cell_loss(pred['label'], cell_target_one_hot)
 
-        print("coords_loss: " + str(coords_loss))
-        print("cell_loss: " + str(cell_loss))
+        #print("coords_loss: " + str(coords_loss))
+        #print("cell_loss: " + str(cell_loss))
 
         return coords_loss + cell_loss
 
@@ -180,11 +180,11 @@ class HybridHeadCentroid(nn.Module):
             # Otherwise use the lower bound
             size = torch.where(
                 regression > 0,
-                self.cell_size_up[gt_label],
-                self.cell_size_down[gt_label],
+                self.cell_size_up[gt_label].squeeze(dim=1),
+                self.cell_size_down[gt_label].squeeze(dim=1),
             )
-            center = self.cell_center[gt_label]
-            gps = self.cell_center[gt_label] + regression * size
+            center = self.cell_center[gt_label].squeeze(dim=1)
+            gps = center + regression * size
         else:
             regression = torch.gather(
                 regression,
