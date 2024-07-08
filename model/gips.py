@@ -6,20 +6,21 @@ from modules import attention_module as am, backbone as bb
 from torch import nn
 from datasets import load_dataset
 from huggingface_hub import PyTorchModelHubMixin
-
+from modules.heads.easy_reg_head import RegressionHead
 
 
 class Gips(nn.Module, PyTorchModelHubMixin):
     """ Assembly of the gips pipeline components. """
 
     def __init__(self, img_embedding_size, descript_embedding_size,
-                 clue_embedding_size, use_multimodal_inputs, is_training):
+                 clue_embedding_size, use_multimodal_inputs, is_training, use_reg_head=False):
         super().__init__()
 
         quad_tree_path, clues = self._prepare_data()
         self.use_multimodal_inputs = use_multimodal_inputs
 
         self.training = is_training
+        self.use_reg_head = use_reg_head
         self.init_modules(img_embedding_size, descript_embedding_size, clue_embedding_size, clues, quad_tree_path)
 
 
@@ -31,7 +32,7 @@ class Gips(nn.Module, PyTorchModelHubMixin):
                                           text_features_size=len(clues),
                                           hidden_layer_size_0=1024,
                                           hidden_layer_size_1=1024)
-        self.att_weight_aggr = am.AttentionWeightedAggregation(temperature=0.01, clues=clues)
+        self.att_weight_aggr = am.AttentionWeightedAggregation(temperature=1, clues=clues)
         self.guiding_head = cph.GuidingHead(aggr_clue_emb_size=clue_embedding_size, clues=clues)
 
         if self.use_multimodal_inputs:
@@ -39,9 +40,17 @@ class Gips(nn.Module, PyTorchModelHubMixin):
         else:
             mid_initial_dim = img_embedding_size
 
-        self.lat_long_head = GeoLogHead(mid_initial_dim=mid_initial_dim,
-                                        quad_tree_path=quad_tree_path,
-                                        is_training=self.training)
+        if not self.use_reg_head:
+            self.lat_long_head = GeoLogHead(mid_initial_dim=mid_initial_dim,
+                                            quad_tree_path=quad_tree_path,
+                                            is_training=self.training)
+        else:
+
+            hidden_dim = [128, 32, 2]
+            if self.use_multimodal_inputs:
+                hidden_dim = [1024] + hidden_dim
+
+            self.lat_long_head = RegressionHead(initial_dim=mid_initial_dim, hidden_dim=hidden_dim)
 
     def forward(self, enc_img, enc_descr, target_cell=None):
         """ Forward pass of the Gips model. Predicts the latitude and longitude of the image.
@@ -108,11 +117,18 @@ class GipsOutput():
         self.aggr_clues = aggr_clues
         self.attn_scores = attn_scores
 
-        self.label = lat_long_pred['label']
-        self.gps = lat_long_pred['gps']
-        self.size = lat_long_pred['size']
-        self.center = lat_long_pred['center']
-        self.reg = lat_long_pred['reg']
+        if type(lat_long_pred) is dict:
+            self.label = lat_long_pred['label']
+            self.gps = lat_long_pred['gps']
+            self.size = lat_long_pred['size']
+            self.center = lat_long_pred['center']
+            self.reg = lat_long_pred['reg']
+        else:
+            self.gps = lat_long_pred
+            self.label = None
+            self.size = None
+            self.center = None
+            self.reg = lat_long_pred
 
         self.pred_geoloc_head = {
             "label": self.label,
@@ -125,3 +141,42 @@ class GipsOutput():
 
     def items(self):
         return self.pred_geoloc_head.items()
+
+class GipsBase(nn.Module):
+    def __init__(self, img_embedding_size, descript_embedding_size,
+                 clue_embedding_size, use_multimodal_inputs, is_training, use_reg_head=False):
+        super().__init__()
+
+        quad_tree_path, clues = self._prepare_data()
+        self.use_multimodal_inputs = use_multimodal_inputs
+
+        self.training = is_training
+        self.use_reg_head = use_reg_head
+        self.init_modules(img_embedding_size, descript_embedding_size, clue_embedding_size, clues, quad_tree_path)
+
+    def init_modules(self, img_embedding_size, descript_embedding_size, clue_embedding_size, clues, quad_tree_path):
+        """ Initialize the modules of the Gips model."""
+        self.img_encoder = bb.StreetCLIP()  # Image encoder
+        self.lin_att = am.LinearAttention(attn_input_img_size=img_embedding_size,
+                                          text_features_size=len(clues),
+                                          hidden_layer_size_0=1024,
+                                          hidden_layer_size_1=1024)
+        self.att_weight_aggr = am.AttentionWeightedAggregation(temperature=1, clues=clues)
+        self.guiding_head = cph.GuidingHead(aggr_clue_emb_size=clue_embedding_size, clues=clues)
+
+        if self.use_multimodal_inputs:
+            mid_initial_dim = img_embedding_size + clue_embedding_size + descript_embedding_size
+        else:
+            mid_initial_dim = img_embedding_size
+
+        if not self.use_reg_head:
+            self.lat_long_head = GeoLogHead(mid_initial_dim=mid_initial_dim,
+                                            quad_tree_path=quad_tree_path,
+                                            is_training=self.training)
+        else:
+
+            hidden_dim = [128, 32, 2]
+            if self.use_multimodal_inputs:
+                hidden_dim = [1024] + hidden_dim
+
+            self.lat_long_head = RegressionHead(initial_dim=mid_initial_dim, hidden_dim=hidden_dim)

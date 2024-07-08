@@ -90,7 +90,7 @@ def filter_dataset(dummy_dataset):
     return filtered_dataset
 
 
-def batched_training_gips(epochs=2, use_multimodal_inputs=True):
+def batched_training_gips(epochs=2, use_multimodal_inputs=True, use_reg_head=True):
     # fix random seed
     torch.manual_seed(0)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -99,14 +99,20 @@ def batched_training_gips(epochs=2, use_multimodal_inputs=True):
                  descript_embedding_size=768,
                  clue_embedding_size=768,
                  use_multimodal_inputs=use_multimodal_inputs,
-                 is_training=True).to(device)
+                 is_training=True,
+                 use_reg_head=use_reg_head).to(device)
+
+    if use_reg_head:
+        lat_long_params = model.lat_long_head.parameters()
+    else:
+        lat_long_params = model.lat_long_head.geoloc_head_mid_network.parameters()
 
     if use_multimodal_inputs:
-        params = (list(model.lat_long_head.geoloc_head_mid_network.parameters()) +
+        params = (list(lat_long_params) +
                   list(model.lin_att.parameters()) +
                   list(model.guiding_head.parameters()))
     else:
-        params = model.geohead.geohead_mid_network.parameters()
+        params = lat_long_params
 
     optimizer = optim.Adam(params, lr=1e-3)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
@@ -170,4 +176,4 @@ def batched_training_gips(epochs=2, use_multimodal_inputs=True):
 if __name__ == '__main__':
     # test_inference()
     # test_batched_inference()
-    batched_training_gips(epochs=10, use_multimodal_inputs=True)
+    batched_training_gips(epochs=10, use_multimodal_inputs=False)

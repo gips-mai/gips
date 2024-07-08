@@ -61,7 +61,7 @@ class GeoLogHead(nn.Module):
 
         # TODO: Discuss - Using a target size (torch.Size([128, 2])) that is different to the input size (torch.Size([128, 128, 2]))
         coords_loss = self.coordinate_loss(pred['gps'].float(), coordinate_target)
-        cell_loss =  self.cell_loss(pred['label'], cell_target_one_hot)
+        cell_loss = self.cell_loss(pred['label'], cell_target_one_hot)
 
         #print("coords_loss: " + str(coords_loss))
         #print("cell_loss: " + str(cell_loss))
