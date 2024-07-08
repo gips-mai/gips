@@ -15,30 +15,44 @@
     },
     "gips_baseline": {
         "guiding_loss": 0.0,
-        "lat_long_loss": 29499.722900390625,
+        "lat_long_loss": 29568.0869140625,
         "len_data": 1006,
-        "loss": 29499.722900390625,
+        "loss": 29568.0869140625,
         "metric": {
             "count": 1006,
-            "Geoguessr": 202.27129201592845,
-            "Haversine": 8219.253208032049
+            "Geoguessr": 201.4145646698816,
+            "Haversine": 8215.509268610509
         },
         "n_guiding_loss": 0.0,
-        "n_lat_long_loss": 29.323780219076166,
-        "n_loss": 29.323780219076166
+        "n_lat_long_loss": 29.391736495091948,
+        "n_loss": 29.391736495091948
+    },
+    "gips_reg_head_multimod": {
+        "guiding_loss": 15.238995552062988,
+        "lat_long_loss": 29479.664794921875,
+        "len_data": 1006,
+        "loss": 29494.903564453125,
+        "metric": {
+            "count": 1006,
+            "Geoguessr": 202.13175175181064,
+            "Haversine": 8221.144987603926
+        },
+        "n_guiding_loss": 0.015148106910599392,
+        "n_lat_long_loss": 29.303841744455145,
+        "n_loss": 29.318989626692968
     },
     "gips_reg_head_no_multimod": {
         "guiding_loss": 0.0,
-        "lat_long_loss": 29628.89306640625,
+        "lat_long_loss": 29610.87744140625,
         "len_data": 1006,
-        "loss": 29628.89306640625,
+        "loss": 29610.87744140625,
         "metric": {
             "count": 1006,
-            "Geoguessr": 201.88744719361912,
-            "Haversine": 8227.566700693244
+            "Geoguessr": 201.6915896903934,
+            "Haversine": 8230.439627677511
         },
         "n_guiding_loss": 0.0,
-        "n_lat_long_loss": 29.452179986487327,
-        "n_loss": 29.452179986487327
+        "n_lat_long_loss": 29.43427181054299,
+        "n_loss": 29.43427181054299
     }
 }

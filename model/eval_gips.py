@@ -55,7 +55,7 @@ def batched_evaluation_gips():
 
     evaluation = {}
 
-    for option, use_multimodal_inputs in zip(['gips', 'gips_reg_head_no_multimod', 'gips_baseline'], [True, False, False]):
+    for option, use_multimodal_inputs in zip(['gips', 'gips_reg_head_multimod', 'gips_reg_head_no_multimod', 'gips_baseline'], [True, True, False, False]):
 
         metric = Metric()
         REPO_ID = "gips-mai"
@@ -67,6 +67,8 @@ def batched_evaluation_gips():
                  is_training=False).to(device)
 
         if option == 'gips':
+            model.from_pretrained('gips-mai/'+option)
+        elif option == 'gips_reg_head_multimod':
             model.from_pretrained('gips-mai/'+option)
         elif option == 'gips_reg_head_no_multimod':
             model.from_pretrained('gips-mai/'+option)
@@ -86,10 +88,8 @@ def batched_evaluation_gips():
             if dataset[i]["country_one_hot_enc"][0] is not None
         )
 
-        # dataset = dataset[:8]
-
         batch_size=128
-        for idx, batch in enumerate(tqdm(DataLoader(dataset, batch_size=batch_size, shuffle=True), desc=option)):
+        for batch in tqdm(DataLoader(dataset, batch_size=batch_size, shuffle=True), desc=option):
 
             # Reshape and transpose the data
             img_enc = torch.stack(batch["img_encoding"]).t().float().to(device)
