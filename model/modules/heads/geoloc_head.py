@@ -55,19 +55,16 @@ class GeoLogHead(nn.Module):
         return self.hybrid_head_centroid(output_midnetwork, cell_target)
 
     def get_loss(self, pred, cell_target, coordinate_target):
+
+        # Convert cell target to one-hot encoding because classificator predicts probs for all cells
         cell_target_one_hot = torch.zeros((cell_target.shape[0], self.final_dim)).to(self.device)
         for b in range(cell_target.shape[0]):
             cell_target_one_hot[b][cell_target[b]] = 1
 
-        # TODO: Discuss - Using a target size (torch.Size([128, 2])) that is different to the input size (torch.Size([128, 128, 2]))
         coords_loss = self.coordinate_loss(pred['gps'].float(), coordinate_target)
         cell_loss = self.cell_loss(pred['label'], cell_target_one_hot)
 
-        #print("coords_loss: " + str(coords_loss))
-        #print("cell_loss: " + str(cell_loss))
-
         return coords_loss + cell_loss
-
 
 
 class MLPCentroid(nn.Module):

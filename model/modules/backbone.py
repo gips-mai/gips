@@ -20,7 +20,6 @@ class StreetCLIP(nn.Module):
         ).unsqueeze(1)
         return features
 
-    # TODO: discuss - why not this forward function?
     # taken from https://github.com/gastruc/osv5m/blob/4e6075387ecde4255410785ffb83830c9aa099f6/models/networks/backbones.py
     def forward_new(self, x):
         """Predicts CLIP features from an image.
@@ -29,12 +28,3 @@ class StreetCLIP(nn.Module):
         """
         features = self.clip(pixel_values=x["img"])["last_hidden_state"]
         return features
-
-
-class ImageDescriptor(nn.Module):
-
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, x):
-        pass

@@ -51,14 +51,11 @@ class GuidingHead(nn.Module):
         Returns:
             The binary cross entropy loss between the attention scores and the ground truth country encoding """
 
-        # gt = num clue X n_enc * n_enc X 1
-        # gt = num clue X 1
-        # loss = gt - attention_prediction
-
         batch_size = gt_country.size(0)
 
         # Convert gt_country into a matrix of column vectors of size (batch_size, num_clues, 1) for the scalar product
         gt_country = gt_country.reshape(batch_size, -1, 1)
+
         # Adjust the clue matrix to the batch size to allow for the scalar product on each sample
         # Batch_size x Clue_num x embedding size
         # Scalar product returns a vector which only has 1s where the country is present in the sample
@@ -89,12 +86,8 @@ class GuidingHead(nn.Module):
         Returns:
             The combined loss of the Guiding Head """
         # Country loss + Pseudo label loss
-
         country_loss = self.comp_country_loss(country_pred, country_target)
         pseudo_loss = self.comp_pseudo_label_loss(attention_scores, country_target)
-
-        # print("Country_loss: " + str(country_loss))
-        # print("Pseudo loss: " + str(pseudo_loss))
 
         return country_loss * (1 - self.alpha) + pseudo_loss * self.alpha
 

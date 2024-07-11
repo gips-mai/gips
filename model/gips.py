@@ -70,6 +70,7 @@ class Gips(nn.Module, PyTorchModelHubMixin):
         else:
             x = enc_img
 
+        # calculate predic based on set head
         latt_long_pred = self.lat_long_head(x, target_cell)
 
         return GipsOutput(latt_long_pred, attn_scores, aggr_clues)
@@ -84,6 +85,7 @@ class Gips(nn.Module, PyTorchModelHubMixin):
             lat_long_pred, aggr_clues, attn_scores = (prediction.lat_long_pred,
                                                       prediction.aggr_clues,
                                                       prediction.attn_scores)
+
             country_pred = self.guiding_head(aggr_clues)
             guiding_loss = self.guiding_head.get_comb_loss(country_pred, target_country, attn_scores)
             total_loss += guiding_loss

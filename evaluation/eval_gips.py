@@ -11,11 +11,6 @@ from gips import Gips
 from datasets import load_dataset
 from utils.metrics import Metric
 import json
-from transformers import AutoModel
-from transformers import pipeline
-import joblib
-from huggingface_hub import hf_hub_download
-from huggingface_hub import PyTorchModelHubMixin
 from dotenv import load_dotenv
 import os
 

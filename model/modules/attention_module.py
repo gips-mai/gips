@@ -24,14 +24,9 @@ class LinearAttention(nn.Module):
         """
         super().__init__()
 
-        self.norm =  torch.nn.BatchNorm1d(attn_input_img_size)
+        self.norm = torch.nn.BatchNorm1d(attn_input_img_size)
 
         self.layers = nn.Sequential(
-            #nn.Linear(attn_input_img_size, hidden_layer_size_0),
-            #nn.ReLU(),
-            #nn.Linear(hidden_layer_size_0, hidden_layer_size_1),
-            #nn.ReLU(),
-            #nn.Linear(hidden_layer_size_1, text_features_size)
             nn.Linear(attn_input_img_size, hidden_layer_size_1),
             nn.ReLU(),
             nn.Linear(hidden_layer_size_1, text_features_size),
@@ -42,8 +37,7 @@ class LinearAttention(nn.Module):
         x = img_embedding
         # Only apply batch normalization if we have a batch
         if x.shape[0] > 1:
-            x = self.norm(img_embedding)  # Batched vs nonbatched training
-        # TODO: normalization currently only for batched training!
+            x = self.norm(img_embedding)
         attention_scores = self.layers(x)
         return attention_scores
 
