@@ -15,16 +15,9 @@ The repository is structured as follows:
 - [evaluation](evaluation): Contains the evaluation scripts for the model 
 - [model](model): Containes the scripts for building the model
 - [training](training): Contains the training scripts for the model
-- [utils](utils): Contains utility functions used for the metrics and the model
 
-## Data Preprocessing
-- Combining the clues from the travelguides and the G^3 data:
-  - We combined the clues from the travelguides and the G^3 data to create a single dataset with the clues. These are used as static input to the model for every input image.
-  - The idea is to provide the model with additional information about how likely it is that an image is in a certain country based on the clues.
-  - Script can be found [here](data%2Fprocessing%2Fclues%2Fcreate_clues_dataframe.ipynb)
-  - We additionally create an ISO-2 country code, which we use in the training process of the attention module to indicate to the model the set of clues that should have been used to predict the correct location.
-  - 
+Each of the folders contains a README file with more detailed information about the content of the respective folder.
 
+All datasets and trained models are uploaded to the [gips-mai huggingface repository](https://huggingface.co/gips-mai) and can be accessed via the Huggingface API to download and use.
 
-
-All datasets and trained models are uploaded to the [gips-mai huggingface repository](https://huggingface.co/gips-mai) and can be accessed via the Huggingface API.
+Delicate information, such as authentication tokens are stored in the `.env` file and are not uploaded to the repository.

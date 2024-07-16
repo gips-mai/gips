@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 import numpy as np
 from model.gips import Gips
 from datasets import load_dataset
-from training.metrics import Metric
+from evaluation.metrics import Metric
 import json
 from dotenv import load_dotenv
 import os

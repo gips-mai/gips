@@ -4,6 +4,7 @@ import torch
 import numpy as np
 
 
+# first two classes copied from: https://github.com/gastruc/osv5m/blob/main/models/networks/utils.py
 class NormGPS(nn.Module):
     def __init__(self):
         super().__init__()
@@ -25,8 +26,10 @@ class UnormGPS(nn.Module):
 
 class GeoLogHead(nn.Module):
 
+    # Heavily inspired from https://github.com/gastruc/osv5m/blob/main/models/networks/heads/hybrid.py
+
     def __init__(self, mid_initial_dim, quad_tree_path, is_training):
-        super().__init__()  # Call the parent class initializer first
+        super().__init__()
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -55,7 +58,6 @@ class GeoLogHead(nn.Module):
         return self.hybrid_head_centroid(output_midnetwork, cell_target)
 
     def get_loss(self, pred, cell_target, coordinate_target):
-
         # Convert cell target to one-hot encoding because classificator predicts probs for all cells
         cell_target_one_hot = torch.zeros((cell_target.shape[0], self.final_dim)).to(self.device)
         for b in range(cell_target.shape[0]):
@@ -115,7 +117,7 @@ class MLPCentroid(nn.Module):
 
 
 class HybridHeadCentroid(nn.Module):
-    """Classification heads followed by regression heads for the network."""
+    """ Loss computation module for MLP Centroid Head (hybrid head)."""
 
     def __init__(self, final_dim, quadtree_path, use_tanh, scale_tanh, is_training):
         super().__init__()

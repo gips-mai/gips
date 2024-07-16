@@ -29,12 +29,10 @@ def filter_dataset(dummy_dataset):
 
 def batched_training_gips(epochs=2, use_multimodal_inputs=True, use_reg_head=True):
 
-    # fix random seed
+    # Initialization steps
     model_id = "gips_reg_head_multimod"
     torch.manual_seed(0)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    ######## Initialize model structure based on experiment setting #################
 
     model = Gips(img_embedding_size=1024,
                  descript_embedding_size=768,
@@ -42,11 +40,9 @@ def batched_training_gips(epochs=2, use_multimodal_inputs=True, use_reg_head=Tru
                  use_multimodal_inputs=use_multimodal_inputs,
                  is_training=True,
                  use_reg_head=use_reg_head).to(device)
-
-    # Set model to train
     model.train()
-    ###################################################################################
 
+    # Given the arguments, decide which parameters to optimize
     if use_reg_head:
         lat_long_params = model.lat_long_head.parameters()
     else:

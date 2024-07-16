@@ -1,6 +1,6 @@
 from torch.nn.modules.module import T
 import torch.nn
-import modules.heads.country_pred_head as cph
+import modules.heads.guiding_head as cph
 from modules.heads.geoloc_head import GeoLogHead
 from modules import attention_module as am, backbone as bb
 from torch import nn
@@ -29,7 +29,6 @@ class Gips(nn.Module, PyTorchModelHubMixin):
 
     def init_modules(self, img_embedding_size, descript_embedding_size, clue_embedding_size, clues, quad_tree_path):
         """ Initialize the modules of the Gips model."""
-        #self.img_encoder = bb.StreetCLIP()  # Image encoder
         self.lin_att = am.LinearAttention(attn_input_img_size=img_embedding_size,
                                           text_features_size=len(clues),
                                           hidden_layer_size_0=1024,
@@ -147,42 +146,3 @@ class GipsOutput():
 
     def items(self):
         return self.pred_geoloc_head.items()
-
-class GipsBase(nn.Module):
-    def __init__(self, img_embedding_size, descript_embedding_size,
-                 clue_embedding_size, use_multimodal_inputs, is_training, use_reg_head=False):
-        super().__init__()
-
-        quad_tree_path, clues = self._prepare_data()
-        self.use_multimodal_inputs = use_multimodal_inputs
-
-        self.training = is_training
-        self.use_reg_head = use_reg_head
-        self.init_modules(img_embedding_size, descript_embedding_size, clue_embedding_size, clues, quad_tree_path)
-
-    def init_modules(self, img_embedding_size, descript_embedding_size, clue_embedding_size, clues, quad_tree_path):
-        """ Initialize the modules of the Gips model."""
-        self.img_encoder = bb.StreetCLIP()  # Image encoder
-        self.lin_att = am.LinearAttention(attn_input_img_size=img_embedding_size,
-                                          text_features_size=len(clues),
-                                          hidden_layer_size_0=1024,
-                                          hidden_layer_size_1=1024)
-        self.att_weight_aggr = am.AttentionWeightedAggregation(temperature=1, clues=clues)
-        self.guiding_head = cph.GuidingHead(aggr_clue_emb_size=clue_embedding_size, clues=clues)
-
-        if self.use_multimodal_inputs:
-            mid_initial_dim = img_embedding_size + clue_embedding_size + descript_embedding_size
-        else:
-            mid_initial_dim = img_embedding_size
-
-        if not self.use_reg_head:
-            self.lat_long_head = GeoLogHead(mid_initial_dim=mid_initial_dim,
-                                            quad_tree_path=quad_tree_path,
-                                            is_training=self.training)
-        else:
-
-            hidden_dim = [128, 32, 2]
-            if self.use_multimodal_inputs:
-                hidden_dim = [1024] + hidden_dim
-
-            self.lat_long_head = RegressionHead(initial_dim=mid_initial_dim, hidden_dim=hidden_dim)
