@@ -7,9 +7,9 @@ import torch
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 import numpy as np
-from gips import Gips
+from model.gips import Gips
 from datasets import load_dataset
-from utils.metrics import Metric
+from training.metrics import Metric
 import json
 from dotenv import load_dotenv
 import os
@@ -34,7 +34,6 @@ def filter_dataset(dummy_dataset):
 
 
 def batched_evaluation_gips():
-    import pickle
     # fix random seed
     torch.manual_seed(0)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
