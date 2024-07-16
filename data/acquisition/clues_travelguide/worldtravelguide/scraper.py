@@ -101,6 +101,7 @@ def filter(countries: list = ['china', 'india'], columns: list = ['General', 'Hi
     return df
 
 
-# retrieve_country_info()
-
-filter()
+if __name__ == '__main__':
+    retrieve_country_urls()
+    retrieve_country_info()
+    filter()
