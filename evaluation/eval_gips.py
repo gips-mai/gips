@@ -14,9 +14,9 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+#get hf token to load model weights
 load_dotenv()
 HF_AUTH_TOKEN = os.getenv("HF_AUTH_TOKEN")
-
 
 osv5m_ann = load_dataset("gips-mai/osv5m_ann")
 
@@ -34,17 +34,23 @@ def filter_dataset(dummy_dataset):
 
 
 def batched_evaluation_gips():
+    """Evaluate GIPS models and save evaluation results."""
+
     # fix random seed
     torch.manual_seed(0)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+    # initialize evaluation dict
     evaluation = {}
 
+    # loop through each model variant
     for option, use_multimodal_inputs, use_regression_head in zip(['gips', 'gips_reg_head_multimod', 'gips_reg_head_no_multimod', 'gips_baseline'], [True, True, False, False], [False, True, True, False]):
+        # evaluate random initialization and trained model
         for random in [False, True]:
             metric = Metric()
             REPO_ID = "gips-mai"
 
+            # initialize mode
             model = Gips(img_embedding_size=1024,
                     descript_embedding_size=768,
                     clue_embedding_size=768,
@@ -53,33 +59,41 @@ def batched_evaluation_gips():
 
             if random:
                 option += '_random'
-            else:
+            else: 
+                # override model weights if trained model should be evaluated
                 if option == 'gips':
-                    model.from_pretrained('gips-mai/'+option)
+                    model.from_pretrained(REPO_ID+'/'+option)
                 elif option == 'gips_reg_head_multimod':
-                    model.from_pretrained('gips-mai/'+option)
+                    model.from_pretrained(REPO_ID+'/'+option)
                 elif option == 'gips_reg_head_no_multimod':
-                    model.from_pretrained('gips-mai/'+option)
+                    model.from_pretrained(REPO_ID+'/'+option)
                 elif option == 'gips_baseline':
-                    model.from_pretrained('gips-mai/'+option)
+                    model.from_pretrained(REPO_ID+'/'+option)
                 else:
                     raise NotImplementedError
+                
+            print(option)
             
-            loss = 0.0
-            lat_long_loss = 0.0
-            guiding_loss = 0.0
-
+            #load data and prepare data
             dataset = filter_dataset(load_dataset("gips-mai/osv5m_ann", split="00"))
 
             dataset = dataset.select(
                 i for i in range(len(dataset))
                 if dataset[i]["country_one_hot_enc"][0] is not None
             )
+            
+            # set losses to zero
+            loss = 0.0
+            lat_long_loss = 0.0
+            guiding_loss = 0.0
 
+            # track best predictions
             best_prediction = None
             best_image_id = None
+            # track distances of prediction to actual location
             dists = None
 
+            # perform batched evaluation
             batch_size=128
             for batch in tqdm(DataLoader(dataset, batch_size=batch_size, shuffle=True), desc=option):
 
@@ -93,23 +107,28 @@ def batched_evaluation_gips():
                 target_country = torch.tensor(np.array(batch["country_one_hot_enc"][0])).t().float().to(device)
                 latitude_target = torch.stack(list(batch["latitude"])).t().float().to(device).unsqueeze(dim=1)
                 longitude_target = torch.stack(list(batch["longitude"])).t().float().to(device).unsqueeze(dim=1)
-
+                
                 coordinate_target = torch.cat((latitude_target, longitude_target), dim=1).to(device)
 
+                # get prediction and losses
                 prediction, total_loss, ll_loss, g_loss = model.get_individual_losses(img_enc, text_enc, target_cell, target_country, coordinate_target)
 
+                # update metrics
                 metric.update(prediction.pred_geoloc_head['gps'], coordinate_target)
 
+                # update losses
                 loss += total_loss.item()
                 lat_long_loss += ll_loss.item()
                 if use_multimodal_inputs:
                     guiding_loss += g_loss.item()
 
+                # save all distances
                 if dists is None:
                     dists = Metric.haversine(prediction.pred_geoloc_head['gps'], coordinate_target)
                 else:
                     dists = torch.cat([dists, Metric.haversine(prediction.pred_geoloc_head['gps'], coordinate_target)], dim=0)
 
+                # save best prediction: img_id and distance
                 if best_prediction is None:
                     best_prediction = torch.min(Metric.haversine(prediction.pred_geoloc_head['gps'], coordinate_target))
                     best_image_id = batch['img_id'][torch.argmin(Metric.haversine(prediction.pred_geoloc_head['gps'], coordinate_target))]
@@ -117,7 +136,9 @@ def batched_evaluation_gips():
                     best_prediction = torch.min(Metric.haversine(prediction.pred_geoloc_head['gps'], coordinate_target))
                     best_image_id = batch['img_id'][torch.argmin(Metric.haversine(prediction.pred_geoloc_head['gps'], coordinate_target))]
             
+            # compute metrics after all batches
             m = metric.compute()
+            # save evaluation to dict
             evaluation[option] = {
                 'multimodal': use_multimodal_inputs,
                 'regression_head': use_regression_head,
@@ -134,11 +155,8 @@ def batched_evaluation_gips():
                 'best_image_id': best_image_id,
                 'distance': dists.tolist()
             }
-
-            print(option, best_image_id, best_prediction)
-
-
     
+    # save eval dict to json
     with open(str(Path(__file__).parent.parent / "data" / "eval.json"), "w") as f:
         json.dump(evaluation, f)
 
