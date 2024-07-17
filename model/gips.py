@@ -2,7 +2,7 @@ from torch.nn.modules.module import T
 import torch.nn
 import modules.heads.guiding_head as cph
 from modules.heads.geoloc_head import GeoLogHead
-from modules import attention_module as am, backbone as bb
+from modules import attention_module as am
 from torch import nn
 from datasets import load_dataset
 from huggingface_hub import PyTorchModelHubMixin
