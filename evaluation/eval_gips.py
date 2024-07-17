@@ -157,7 +157,7 @@ def batched_evaluation_gips():
             }
     
     # save eval dict to json
-    with open(str(Path(__file__).parent.parent / "data" / "eval.json"), "w") as f:
+    with open("eval.json", "w") as f:
         json.dump(evaluation, f)
 
 if __name__ == '__main__':
