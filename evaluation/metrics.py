@@ -5,19 +5,16 @@ import torch
 class Metric:
     def __init__(self):
         self.haversine_sum = 0
-        self.geogame_sum = 0
         self.count = 0
 
     def update(self, pred:torch.Tensor, gt:torch.Tensor):
         self.haversine_sum += Metric.haversine(pred, gt).sum(dim=0)
-        self.geogame_sum += Metric.geogame_score(pred, gt).sum(dim=0)
         self.count += pred.shape[0] # batch size
 
     def compute(self):
         # compute the Metric for all predictions
         output = {
             "Haversine": float(self.haversine_sum.item())/ self.count,
-            "Geoguessr": float(self.geogame_sum.item())/ self.count,
             "count": self.count
         }
 
@@ -38,11 +35,3 @@ class Metric:
         distance = R * c
 
         return distance
-
-    def geogame_score(pred:torch.Tensor, gt:torch.Tensor, factor:int=2000):
-        # expects inputs to be np arrays in (lat, lon) format
-        # N x 2
-
-        # the factor is typically 2000 or 1492.7
-
-        return 5000 * torch.exp(-Metric.haversine(pred, gt)/factor)
