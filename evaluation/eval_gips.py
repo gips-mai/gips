@@ -1,18 +1,18 @@
 from pathlib import Path
 import sys
 sys.path.append(str(Path(__file__).cwd().parent))
-sys.path.append(str(Path(__file__).cwd()))
+sys.path.append(str(Path(__file__).cwd().parent/'model'))
 
-import torch
-from tqdm import tqdm
-from torch.utils.data import DataLoader
-import numpy as np
-from model.gips import Gips
 from datasets import load_dataset
-from evaluation.metrics import Metric
-import json
 from dotenv import load_dotenv
+import json
+from metrics import Metric
+from model.gips import Gips
+import numpy as np
 import os
+import torch
+from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 load_dotenv()
 HF_AUTH_TOKEN = os.getenv("HF_AUTH_TOKEN")
