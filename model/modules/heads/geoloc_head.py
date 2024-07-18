@@ -25,6 +25,12 @@ class UnormGPS(nn.Module):
 
 
 class GeoLogHead(nn.Module):
+    """ Creates the hybrid geolocation head for predicting GPS coordinates from an image.
+    Consists of two modules:
+        1. MLP Centroid: Predicts the probability for each cell in the quadtree
+        and also predicts the GPS coordinates within each cell.
+        2. HybridHeadCentroid: Extracts the most probable cell and respective GPS coordinates
+        and forms a final prediction output."""
 
     # Heavily inspired from https://github.com/gastruc/osv5m/blob/main/models/networks/heads/hybrid.py
 
@@ -33,31 +39,42 @@ class GeoLogHead(nn.Module):
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        self.final_dim = 11399  # quadtree len
+        self.final_dim = 11399  # quadtree length
         use_tanh = True
         scale_tanh = 1.2
 
-        # Prediction computation
+        # Module for raw prediction computation
         self.geoloc_head_mid_network = MLPCentroid(initial_dim=mid_initial_dim,
                                                    hidden_dim=[mid_initial_dim, 1024, 512],
                                                    final_dim=self.final_dim,
                                                    activation=torch.nn.GELU,
                                                    norm=torch.nn.GroupNorm)
-        # Loss computation
+        # Module for extracting the final prediction from the raw values
         self.hybrid_head_centroid = HybridHeadCentroid(final_dim=self.final_dim,
                                                        quadtree_path=quad_tree_path,
                                                        use_tanh=use_tanh,
                                                        scale_tanh=scale_tanh,
                                                        is_training=is_training)
-
+        # Loss functions
         self.cell_loss = nn.CrossEntropyLoss()
         self.coordinate_loss = nn.MSELoss()
 
     def forward(self, aggr_input, cell_target=None):
+        # Predict the probability of each cell in the quadtree and the regression values
         output_midnetwork = self.geoloc_head_mid_network(aggr_input)
+        # Extract the most probable cell and return the GPS coordinates within this cell
         return self.hybrid_head_centroid(output_midnetwork, cell_target)
 
     def get_loss(self, pred, cell_target, coordinate_target):
+        """ Computes the loss for the hybrid head.
+        Args:
+            pred: dict with the predicted output of the hybrid head
+            cell_target: tensor with the target cell
+            coordinate_target: tensor with the target GPS coordinates
+        Returns:
+             The loss for the hybrid head, consisting of the cell loss (classification loss)
+             and the coordinate loss (regression loss). """
+
         # Convert cell target to one-hot encoding because classificator predicts probs for all cells
         cell_target_one_hot = torch.zeros((cell_target.shape[0], self.final_dim)).to(self.device)
         for b in range(cell_target.shape[0]):
@@ -70,6 +87,9 @@ class GeoLogHead(nn.Module):
 
 
 class MLPCentroid(nn.Module):
+    """ The MLP module for predicting the probability of each cell in the quadtree and the GPS
+    coordinates within each cell."""
+
     def __init__(
             self,
             initial_dim=512,
@@ -78,13 +98,6 @@ class MLPCentroid(nn.Module):
             norm=nn.InstanceNorm1d,
             activation=nn.ReLU,
     ):
-        """
-        Initializes an MLP Classification Head
-        Args:
-            hidden_dim (list): list of hidden dimensions for the MLP
-            norm (nn.Module): normalization layer
-            activation (nn.Module): activation layer
-        """
         super().__init__()
 
         dim = [initial_dim] + hidden_dim + [final_dim]
@@ -107,17 +120,17 @@ class MLPCentroid(nn.Module):
         return args
 
     def forward(self, x):
-        """Predicts GPS coordinates from an image.
-        Args:
-            x: torch.Tensor with features
-        """
+        # Predict the probability of each cell in the quadtree
         result_classif = self.classif(x)
+        # Predict the GPS coordinates within each cell
         result_regres = self.reg(x)
+        # Return the raw values of the classification and regression
         return torch.cat([result_classif, result_regres], dim=1)
 
 
 class HybridHeadCentroid(nn.Module):
-    """ Loss computation module for MLP Centroid Head (hybrid head)."""
+    """ Assisting module to the geolocation head. Extracts the raw values for the cell probabilities and the regression
+    values and combines them into a final prediction output. """
 
     def __init__(self, final_dim, quadtree_path, use_tanh, scale_tanh, is_training):
         super().__init__()
@@ -133,6 +146,7 @@ class HybridHeadCentroid(nn.Module):
         self.training = is_training
 
     def init_quadtree(self, quadtree):
+        """ Initialize the quadtree with the min, max and mean values for latitude and longitude of each cell. """
 
         quadtree[["min_lat", "max_lat", "mean_lat"]] /= 90.0
         quadtree[["min_lon", "max_lon", "mean_lon"]] /= 180.0
@@ -144,9 +158,6 @@ class HybridHeadCentroid(nn.Module):
             quadtree[["min_lat", "min_lon"]].values)
 
     def forward(self, x, gt_label):
-        """Forward pass of the network.
-        x : Union[torch.Tensor, dict] with the output of the backbone.
-        """
         # Extract the most probable classified cell in the quadtree
         classification_logits = x[..., : self.final_dim]
         classification = classification_logits.argmax(dim=-1)

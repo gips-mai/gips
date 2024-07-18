@@ -9,13 +9,18 @@ from datasets import load_dataset
 from dotenv import load_dotenv
 from torch.utils.tensorboard import SummaryWriter
 
+# Load environment variables and dataset
 load_dotenv()
 HF_AUTH_TOKEN = os.getenv("HF_AUTH_TOKEN")
 osv5m_ann = load_dataset("gips-mai/osv5m_ann")
 
 
 def filter_dataset(dummy_dataset):
-    # Filter the dataset to keep only the specified columns
+    """ Filter the dataset to keep only the specified columns.
+    Args:
+        dummy_dataset: The dataset to be filtered
+    Returns:
+        The filtered dataset. """
     columns_to_keep = ["img_encoding", "desc_encoding", "quadtree_10_1000", "country_one_hot_enc", "latitude",
                        "longitude"]
 
@@ -28,12 +33,16 @@ def filter_dataset(dummy_dataset):
 
 
 def batched_training_gips(epochs=2, use_multimodal_inputs=True, use_reg_head=True):
+    """ Train loop for the Gips model.
+    Args:
+        epochs: Number of epochs to train the model
+        use_multimodal_inputs: Whether to use multimodal inputs
+        use_reg_head: Whether to use the simple or hybrid geolocation regression head """
 
     # Initialization steps
     model_id = "gips_reg_head_multimod"
     torch.manual_seed(0)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
     model = Gips(img_embedding_size=1024,
                  descript_embedding_size=768,
                  clue_embedding_size=768,
@@ -55,19 +64,16 @@ def batched_training_gips(epochs=2, use_multimodal_inputs=True, use_reg_head=Tru
     else:
         params = lat_long_params
 
-
-    # Init optimizer and splits
+    # Init optimizer and splits and tensorBoard writer
     optimizer = optim.Adam(params, lr=1e-3)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
-
-    # Initialize TensorBoard writer
     writer = SummaryWriter(f'runs/{model_id}_multimodal_{use_multimodal_inputs}')
 
     for epoch in tqdm(range(epochs), desc=f"Epochs - {model_id}"):
         epoch_loss = 0.0
         batch_count = 0
 
-        # OSV5m is separated into splits
+        # Loop through dataset splits
         for split in ["01", "02", "03", "04"]:
 
             training_data = filter_dataset(load_dataset("gips-mai/osv5m_ann", split=split))
@@ -82,7 +88,7 @@ def batched_training_gips(epochs=2, use_multimodal_inputs=True, use_reg_head=Tru
                     tqdm(DataLoader(training_data, batch_size=32, shuffle=True), desc=f"Batches - {model_id}")):
                 optimizer.zero_grad()
 
-                # Reshape and transpose the data
+                # Reshape and transpose the data to match the model's input for batch processing
                 img_enc = torch.stack(batch["img_encoding"]).t().float().to(device)
                 text_enc = torch.stack(batch["desc_encoding"]).t().float().to(device)
                 target_cell = torch.stack(list(batch["quadtree_10_1000"])).t().to(device).unsqueeze(dim=1)
@@ -93,11 +99,10 @@ def batched_training_gips(epochs=2, use_multimodal_inputs=True, use_reg_head=Tru
                 coordinate_target = torch.cat((latitude_target, longitude_target), dim=1).to(device)
 
                 # Get combination of location prediction loss + country prediction loss + pseudo label loss
-                total_loss = model.get_individual_losses(img_enc, text_enc, target_cell, target_country, coordinate_target)[1]
-
+                total_loss = \
+                    model.get_individual_losses(img_enc, text_enc, target_cell, target_country, coordinate_target)[1]
                 epoch_loss += total_loss.item()
                 batch_count += 1
-
                 total_loss.backward()
 
                 # Check gradient norms
@@ -121,7 +126,7 @@ def batched_training_gips(epochs=2, use_multimodal_inputs=True, use_reg_head=Tru
         # Log learning rate
         writer.add_scalar('Learning rate', scheduler.get_last_lr()[0], epoch)
 
-        # Upload to hugginface
+        # Upload to Hugging Face
         model.push_to_hub(f"gips-mai/{model_id}", token=HF_AUTH_TOKEN)
 
         print(f"Epoch {epoch} - Loss: {avg_epoch_loss}")

@@ -5,14 +5,14 @@ from datasets import DatasetDict, Dataset, load_dataset
 from dotenv import load_dotenv
 import os
 from pathlib import Path
-
 from tqdm import tqdm
 from transformers import CLIPImageProcessor, CLIPVisionModel
 import torch
 
+# Load environment variables
 load_dotenv()
 
-# Hyperparameter
+# Hyperparameters and constants
 RAW_OSV5M_DIR = os.getenv("RAW_OSV5M_DIR")
 RAW_OSV5M_DIR = Path(RAW_OSV5M_DIR)  # Convert to Path object because of windows
 HF_AUTH_TOKEN = os.getenv('HF_AUTH_TOKEN')
@@ -22,6 +22,7 @@ batch_size = 128
 
 
 def test_clip():
+    """Test the CLIP inference with a single image."""
     model = CLIPVisionModel.from_pretrained(model_name).to("cuda")
     processor = CLIPImageProcessor.from_pretrained(processor_name)
 
@@ -50,6 +51,7 @@ def test_clip():
 
 
 def init_model():
+    """ Initialize the CLIP model and processor and determine the expected image size, as well as the device."""
     # Initialize CLIP model and processor
     model = CLIPVisionModel.from_pretrained(model_name).to("cuda")
     processor = CLIPImageProcessor.from_pretrained(processor_name)
@@ -67,6 +69,7 @@ def init_model():
 
 
 def inference_loop():
+    """ Inference loop to encode the images of the OSv5M dataset splits using CLIP. """
     print(f"Processing images from {RAW_OSV5M_DIR}")
 
     model, processor, image_size, device = init_model()
@@ -113,12 +116,14 @@ def inference_loop():
 
 
 def inference_loop_test_split():
+    """ Inference loop to encode the images of the OSv5M dataset split 00 using CLIP.
+    00 is our test split. This function was added after the initial inference_loop function and was not integrated to
+    save time. """
     # Download the enc_descr dataset to determine the ids of the images to process in split 00
     enc_descr_00 = load_dataset("gips-mai/enc_descr", split="00")
     image_ids = enc_descr_00['img_id']
 
     model, processor, image_size, device = init_model()
-
     enc_images_split_00 = []
 
     for img_id in tqdm(image_ids, desc="Processing split 00"):
@@ -131,8 +136,6 @@ def inference_loop_test_split():
             image_features = model(**inputs).pooler_output
 
         enc_images_split_00.append({'img_id': img_id, 'encoding': image_features.squeeze(dim=0).cpu().numpy()})
-        #print(f"Processed image {img_id}")
-        #print(f"Encoding: {image_features.squeeze(dim=0).cpu().numpy().shape}")
 
     enc_images_split_00 = Dataset.from_list(enc_images_split_00)
 

@@ -2,7 +2,6 @@ import numpy as np
 from datasets import Dataset
 from tqdm import tqdm
 import torch
-from transformers import RobertaTokenizer, RobertaModel
 import os
 from dotenv import load_dotenv
 import torchvision.transforms as T
@@ -10,9 +9,10 @@ from PIL import Image
 from torchvision.transforms.functional import InterpolationMode
 from sentence_transformers import SentenceTransformer
 
-# Definitions
+# Load model
 model = SentenceTransformer('all-mpnet-base-v2')
 
+# Load environment variables
 load_dotenv()
 HF_AUTH_TOKEN = os.getenv('HF_AUTH_TOKEN')
 
@@ -68,9 +68,10 @@ def upload_on_hf(dataset, path):
     Args:
         dataset: datasets.Dataset, the dataset to upload on the Hub
         path: str, the path to save the dataset """
-
-    # Save the dataset
     dataset.push_to_hub(path, token=HF_AUTH_TOKEN)
+
+
+# Residual code copied from: https://huggingface.co/OpenGVLab/Mini-InternVL-Chat-4B-V1-5
 
 
 IMAGENET_MEAN = (0.485, 0.456, 0.406)

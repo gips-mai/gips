@@ -3,6 +3,9 @@ import torch.nn as nn
 
 
 class GuidingHead(nn.Module):
+    """ Module used to guide the attention module of the main model to learn which clues are important for a given
+    image."""
+
     def __init__(self, aggr_clue_emb_size, clues, alpha=0.75,
                  hot_encoding_size=221) -> None:
         super().__init__()
@@ -22,7 +25,6 @@ class GuidingHead(nn.Module):
         for a given image. """
         self.classifier = nn.Sequential(
             nn.Linear(self.aggr_clue_emb_size, 512),
-            #nn.Linear(1024, 512),
             nn.Linear(512, self.hot_encoding_size),
         )
 

@@ -10,9 +10,9 @@ from modules.heads.easy_reg_head import RegressionHead
 from pathlib import Path
 
 
-
 class Gips(nn.Module, PyTorchModelHubMixin):
-    """ Assembly of the gips pipeline components. """
+    """ The full Gips model pipeline.
+    Combines the attention module, the guiding head and the geolocation head into one model."""
 
     def __init__(self, img_embedding_size, descript_embedding_size,
                  clue_embedding_size, use_multimodal_inputs, is_training, use_reg_head=False):
@@ -25,15 +25,18 @@ class Gips(nn.Module, PyTorchModelHubMixin):
         self.training = is_training
         self.init_modules(img_embedding_size, descript_embedding_size, clue_embedding_size, clues, quad_tree_path)
 
-
-
     def init_modules(self, img_embedding_size, descript_embedding_size, clue_embedding_size, clues, quad_tree_path):
         """ Initialize the modules of the Gips model."""
+        # Initialize the linear attention module
         self.lin_att = am.LinearAttention(attn_input_img_size=img_embedding_size,
                                           text_features_size=len(clues),
                                           hidden_layer_size_0=1024,
-                                          hidden_layer_size_1=1024)
+                                          hidden_layer_size=1024)
+        # Initialize the attention-weighted aggregation module
         self.att_weight_aggr = am.AttentionWeightedAggregation(temperature=1, clues=clues)
+
+        # Depending on the configuration, initialize the guiding head and the geolocation head
+        # and set the dimensions accordingly
         if self.use_multimodal_inputs:
             self.guiding_head = cph.GuidingHead(aggr_clue_emb_size=clue_embedding_size, clues=clues)
             mid_initial_dim = img_embedding_size + clue_embedding_size + descript_embedding_size
@@ -69,12 +72,12 @@ class Gips(nn.Module, PyTorchModelHubMixin):
         else:
             x = enc_img
 
-        # calculate predic based on set head
+        # Calculate coordinate prediction
         latt_long_pred = self.lat_long_head(x, target_cell)
 
         return GipsOutput(latt_long_pred, attn_scores, aggr_clues)
 
-    def get_individual_losses(self: T, enc_img, enc_descr, target_cell, target_country, coordinate_target)  -> T:
+    def get_individual_losses(self: T, enc_img, enc_descr, target_cell, target_country, coordinate_target) -> T:
         """Returns model prediction, total loss, lat_long_loss and guiding_loss"""
 
         prediction = self.forward(enc_img, enc_descr, target_cell)
@@ -97,9 +100,9 @@ class Gips(nn.Module, PyTorchModelHubMixin):
         return prediction, total_loss, lat_long_loss, guiding_loss
 
     def _prepare_data(self):
+        """ Load the static data (the quadtree and the encoded clues)."""
         quad_tree_path = str(Path(__file__).parent.parent / "data" / "quad_tree" / "quadtree_10_1000.csv")
         clues = load_dataset("gips-mai/all_clues_enc", split='train')
-
         return quad_tree_path, clues
 
     def _compute_clue_attention(self, enc_img):
@@ -109,7 +112,6 @@ class Gips(nn.Module, PyTorchModelHubMixin):
             enc_img (Tensor): Encoded image tensor """
 
         attn_scores = self.lin_att(enc_img)
-
         return self.att_weight_aggr.forward(attn_scores), attn_scores
 
 

@@ -5,18 +5,20 @@ import pandas as pd
 import tqdm
 from utils import load_image
 import argparse
-
 from dotenv import load_dotenv
 
+# Load environment variables
 load_dotenv()
 RAW_OSV5M_DIR = os.getenv('RAW_OSV5M_DIR')
 RAW_DESCR_DIR = os.getenv('RESULT_LOCATION_DIR')
 
+# Set up command-line argument parsing
+# Used to specify the directory of the images to be annotated (split 00 to 04)
 parser = argparse.ArgumentParser(description='Annotate OSV5M dataset')
 parser.add_argument("--img_fold_num", type=str, required=True, help='Directory number of the images to be annotated')
 args = parser.parse_args()
 
-# hyperparameters
+# Define hyperparameters and configuration
 img_fold_num = args.img_fold_num
 folder_path = RAW_OSV5M_DIR + img_fold_num
 result_folder = RAW_DESCR_DIR
@@ -30,7 +32,7 @@ generation_config = dict(
     do_sample=False,
 )
 
-# model and tokenizer loading
+# Load model and tokenizer
 path = "OpenGVLab/Mini-InternVL-Chat-4B-V1-5"
 model = AutoModel.from_pretrained(
     path,
@@ -40,8 +42,7 @@ model = AutoModel.from_pretrained(
 
 tokenizer = AutoTokenizer.from_pretrained(path, trust_remote_code=True)
 
-# batch inference loop
-
+# Initialize variables for batch processing
 counter = 0
 responses_to_save = []
 num_files = 0
@@ -50,22 +51,23 @@ torch.cuda.empty_cache()
 image_files = [f for f in os.listdir(folder_path) if f.endswith(('.jpg'))]
 num_images = len(image_files)
 
+# Create descriptions for each image in the folder in batches for time efficiency
 for i in tqdm.tqdm(range(0, num_images, batch_size), desc="File: " + str(img_fold_num), unit="batch"):
     # Get the current batch of image files
     current_batch_files = image_files[i:i + batch_size]
 
-    # Image loading batched
+    # Load images in batch
     batch_pixel_values = []
     for image_file in current_batch_files:
         image_path = os.path.join(folder_path, image_file)
         pixel_values = load_image(image_path, max_num=6).to(parameter_size).cuda()
         batch_pixel_values.append(pixel_values)
 
-    # batch preparation
+    # Prepare batch
     image_counts = [x.size(0) for x in batch_pixel_values]
     pixel_values = torch.cat(batch_pixel_values, dim=0)
 
-    # prompt the model
+    # Generate descriptions from the model
     responses = model.batch_chat(tokenizer, pixel_values,
                                  image_counts=image_counts,
                                  questions=questions,
@@ -75,16 +77,15 @@ for i in tqdm.tqdm(range(0, num_images, batch_size), desc="File: " + str(img_fol
         {'image_file': img_file, 'response': resp} for img_file, resp in zip(current_batch_files, responses))
     counter += 1
 
-    # every 50 batches save the generated answers
+    # Store responses every 6 batches to avoid recomputing the entire directory if the process is interrupted
     if counter >= 6:
         # Convert results to DataFrame
         df = pd.DataFrame(responses_to_save)
         # Save the results to a CSV file
         df.to_csv(f'{result_folder}/{img_fold_num}_image_descriptions' + str(num_files) + '.csv', index=False)
         print(f"Saved {num_files} files to {result_folder}")
-        # reset df
+        # Reset DataFrame and counter
         responses_to_save = []
-        # reset counter
         counter = 0
         num_files += 1
 
